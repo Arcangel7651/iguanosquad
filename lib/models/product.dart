@@ -14,3 +14,4 @@ class Product {
     required this.comments,
     required this.description,
   });
+}
