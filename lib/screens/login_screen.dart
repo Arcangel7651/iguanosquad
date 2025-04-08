@@ -26,10 +26,10 @@ class _LoginScreenState extends State<LoginScreen> {
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      
+
       // Simular delay de autenticación
       await Future.delayed(const Duration(seconds: 1));
-      
+
       if (mounted) {
         setState(() => _isLoading = false);
         Navigator.of(context).pushNamedAndRemoveUntil(
@@ -115,7 +115,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
                       onPressed: () {
                         setState(() {
