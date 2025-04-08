@@ -1,5 +1,7 @@
 // lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
+import 'package:iguanosquad/models/usuario.dart';
+import 'package:iguanosquad/services/auth_service.dart';
 import '../config/routes.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -24,19 +27,26 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
 
-      // Simular delay de autenticación
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (mounted) {
-        setState(() => _isLoading = false);
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          Routes.home,
-          (route) => false,
-        );
-      }
+    try {
+      Usuario user = await _authService.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      // Login exitoso: navegar y pasar el usuario
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        Routes.home,
+        (_) => false,
+        arguments: user,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

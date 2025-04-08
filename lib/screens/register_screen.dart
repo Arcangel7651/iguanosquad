@@ -1,6 +1,8 @@
 // lib/screens/register_screen.dart
 import 'package:flutter/material.dart';
 import '../config/routes.dart';
+import '../services/auth_service.dart';
+import '../models/usuario.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -10,6 +12,10 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  // 1. Instancia del servicio de autenticación
+  final AuthService _authService = AuthService();
+
+  // 2. Controllers y estado
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -27,20 +33,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  // 3. Manejo del registro
   void _handleRegister() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      
-      // Simular delay de registro
-      await Future.delayed(const Duration(seconds: 1));
-      
-      if (mounted) {
-        setState(() => _isLoading = false);
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          Routes.home,
-          (route) => false,
-        );
-      }
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final nuevoUsuario = await _authService.register(
+        nombre: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        ubicacion: _locationController.text.trim(),
+      );
+
+      // Registro exitoso: navega a Home y pasa el usuario (opcional)
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        Routes.home,
+        (_) => false,
+        arguments: nuevoUsuario,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -84,7 +101,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 30),
 
-                // Campos del formulario
+                // Nombre
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
@@ -94,15 +111,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingresa tu nombre';
-                    }
-                    return null;
-                  },
+                  validator: (v) => (v == null || v.isEmpty)
+                      ? 'Por favor ingresa tu nombre'
+                      : null,
                 ),
                 const SizedBox(height: 20),
 
+                // Correo
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -113,18 +128,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
+                  validator: (v) {
+                    if (v == null || v.isEmpty)
                       return 'Por favor ingresa tu correo electrónico';
-                    }
-                    if (!value.contains('@')) {
+                    if (!v.contains('@'))
                       return 'Ingresa un correo electrónico válido';
-                    }
                     return null;
                   },
                 ),
                 const SizedBox(height: 20),
 
+                // Contraseña
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -132,31 +146,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: 'Contraseña',
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
+                  validator: (v) {
+                    if (v == null || v.isEmpty)
                       return 'Por favor ingresa una contraseña';
-                    }
-                    if (value.length < 6) {
+                    if (v.length < 6)
                       return 'La contraseña debe tener al menos 6 caracteres';
-                    }
                     return null;
                   },
                 ),
                 const SizedBox(height: 20),
 
+                // Ubicación
                 TextFormField(
                   controller: _locationController,
                   decoration: InputDecoration(
@@ -166,12 +176,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingresa tu ubicación';
-                    }
-                    return null;
-                  },
+                  validator: (v) => (v == null || v.isEmpty)
+                      ? 'Por favor ingresa tu ubicación'
+                      : null,
                 ),
                 const SizedBox(height: 30),
 
@@ -205,18 +212,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      '¿Ya tienes una cuenta?',
-                      style: TextStyle(color: Colors.grey),
-                    ),
+                    const Text('¿Ya tienes una cuenta?',
+                        style: TextStyle(color: Colors.grey)),
                     TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      child: const Text(
-                        'Iniciar Sesión',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Iniciar Sesión',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),

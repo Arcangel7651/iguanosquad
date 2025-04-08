@@ -1,8 +1,14 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'config/routes.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+Future<void> main() async {
+  await Supabase.initialize(
+    url: 'https://eqpfcemfmfoupwoouksi.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxcGZjZW1mbWZvdXB3b291a3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODc1MDQsImV4cCI6MjA1OTY2MzUwNH0.mJsQoe3z6F-p8vXXtMCcDub9GWFguItOIotb9hjYL3w',
+  );
   runApp(const EcoXApp());
 }
 
