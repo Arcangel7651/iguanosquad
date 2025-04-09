@@ -1,9 +1,13 @@
 // lib/screens/events_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/activity.dart';
-import '../widgets/eco_event_card.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
 import 'package:intl/intl.dart';
+import '../constants/categories.dart';
+import '../widgets/eco_event_card.dart';
+import '../models/activity.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({Key? key}) : super(key: key);
@@ -14,9 +18,10 @@ class EventsScreen extends StatefulWidget {
 
 class _EventsScreenState extends State<EventsScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final ImagePicker _imagePicker = ImagePicker();
   List<Activity> _activities = [];
   bool _isLoading = true;
-  String _selectedCategory = 'todos';
+  String _selectedCategory = Categories.todos;
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -25,6 +30,8 @@ class _EventsScreenState extends State<EventsScreen> {
   DateTime? _selectedDate;
   String _selectedActivityType = 'Presencial';
   int? _availableSpots;
+  File? _selectedImage;
+  bool _isUploadingImage = false;
 
   @override
   void initState() {
@@ -42,6 +49,7 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   Future<void> _loadActivities() async {
+    setState(() => _isLoading = true);
     try {
       final response = await _supabase
           .from('actividad_conservacion')
@@ -54,22 +62,69 @@ class _EventsScreenState extends State<EventsScreen> {
           _activities = (response.data as List)
               .map((json) => Activity.fromJson(json))
               .toList();
-          _isLoading = false;
         });
       }
     } catch (e) {
       debugPrint('Error cargando actividades: $e');
-      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar las actividades')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  List<Activity> _getFilteredActivities() {
-    if (_selectedCategory == 'todos') {
-      return _activities;
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        setState(() => _selectedImage = File(image.path));
+      }
+    } catch (e) {
+      debugPrint('Error seleccionando imagen: $e');
     }
-    return _activities
-        .where((activity) => activity.tipoCategoria == _selectedCategory)
-        .toList();
+  }
+
+  Future<String?> _uploadImage() async {
+    if (_selectedImage == null) return null;
+
+    setState(() => _isUploadingImage = true);
+    try {
+      final String fileName = '${DateTime.now().millisecondsSinceEpoch}${path.extension(_selectedImage!.path)}';
+      final String storageFolder = 'actividades';
+      
+      final response = await _supabase
+          .storage
+          .from(storageFolder)
+          .upload(fileName, _selectedImage!);
+
+      if (response.error != null) {
+        throw response.error!;
+      }
+
+      // Obtener la URL pública
+      final String imageUrl = _supabase
+          .storage
+          .from(storageFolder)
+          .getPublicUrl(fileName)
+          .data!;
+
+      return imageUrl;
+    } catch (e) {
+      debugPrint('Error subiendo imagen: $e');
+      return null;
+    } finally {
+      setState(() => _isUploadingImage = false);
+    }
   }
 
   Future<void> _createActivity() async {
@@ -77,7 +132,14 @@ class _EventsScreenState extends State<EventsScreen> {
       return;
     }
 
+    setState(() => _isUploadingImage = true);
+    String? imageUrl;
+
     try {
+      if (_selectedImage != null) {
+        imageUrl = await _uploadImage();
+      }
+
       await _supabase.from('actividad_conservacion').insert({
         'nombre': _titleController.text,
         'descripcion': _descriptionController.text,
@@ -86,12 +148,16 @@ class _EventsScreenState extends State<EventsScreen> {
         'tipo_actividad': _selectedActivityType,
         'disponibilidad_cupos': _availableSpots,
         'materiales_requeridos': _materialsController.text,
-        'tipo_categoria': _selectedCategory == 'todos' ? 'limpieza' : _selectedCategory,
+        'tipo_categoria': _selectedCategory.toLowerCase(),
+        'url_image': imageUrl,
       }).execute();
 
       if (mounted) {
         Navigator.pop(context);
         _loadActivities();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Actividad creada exitosamente')),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -99,7 +165,18 @@ class _EventsScreenState extends State<EventsScreen> {
           const SnackBar(content: Text('Error al crear la actividad')),
         );
       }
+    } finally {
+      setState(() => _isUploadingImage = false);
     }
+  }
+
+  List<Activity> _getFilteredActivities() {
+    if (_selectedCategory == Categories.todos) {
+      return _activities;
+    }
+    return _activities
+        .where((activity) => activity.tipoCategoria?.toLowerCase() == _selectedCategory.toLowerCase())
+        .toList();
   }
 
   @override
@@ -138,40 +215,42 @@ class _EventsScreenState extends State<EventsScreen> {
             padding: const EdgeInsets.all(8),
             child: Row(
               children: [
-                _buildCategoryChip('todos', 'Todos'),
-                _buildCategoryChip('limpieza', 'Limpieza'),
-                _buildCategoryChip('reciclaje', 'Reciclaje'),
-                _buildCategoryChip('educacion', 'Educación'),
-                _buildCategoryChip('planteacion', 'Plantación'),
+                _buildCategoryChip(Categories.todos, 'Todos'),
+                ...Categories.values.map((category) => 
+                  _buildCategoryChip(category, category)
+                ),
               ],
             ),
           ),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _getFilteredActivities().isEmpty
-                    ? const Center(child: Text('No hay eventos disponibles'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _getFilteredActivities().length,
-                        itemBuilder: (context, index) {
-                          final activity = _getFilteredActivities()[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: EcoEventCard(
-                              title: activity.nombre,
-                              date: DateFormat('dd/MM/yyyy HH:mm')
-                                  .format(activity.fechaHora),
-                              location: activity.ubicacion ?? 'Sin ubicación',
-                              description: activity.descripcion ?? '',
-                              participants: activity.disponibilidadCupos ?? 0,
-                              imageUrl: activity.urlImage,
-                              materials: activity.materialesRequeridos,
-                              type: activity.tipoActividad ?? 'Presencial',
-                            ),
-                          );
-                        },
-                      ),
+            child: RefreshIndicator(
+              onRefresh: _loadActivities,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _getFilteredActivities().isEmpty
+                      ? const Center(child: Text('No hay eventos disponibles'))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _getFilteredActivities().length,
+                          itemBuilder: (context, index) {
+                            final activity = _getFilteredActivities()[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: EcoEventCard(
+                                title: activity.nombre,
+                                date: DateFormat('dd/MM/yyyy HH:mm')
+                                    .format(activity.fechaHora),
+                                location: activity.ubicacion ?? 'Sin ubicación',
+                                description: activity.descripcion ?? '',
+                                participants: activity.disponibilidadCupos ?? 0,
+                                imageUrl: activity.urlImage,
+                                materials: activity.materialesRequeridos,
+                                type: activity.tipoActividad ?? 'Presencial',
+                              ),
+                            );
+                          },
+                        ),
+            ),
           ),
         ],
       ),
@@ -199,6 +278,16 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   void _showCreateEventDialog(BuildContext context) {
+    // Resetear valores
+    _titleController.clear();
+    _descriptionController.clear();
+    _locationController.clear();
+    _materialsController.clear();
+    _selectedDate = null;
+    _selectedImage = null;
+    _availableSpots = null;
+    _selectedActivityType = 'Presencial';
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -209,6 +298,29 @@ class _EventsScreenState extends State<EventsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Selector de imagen
+                InkWell(
+                  onTap: _pickImage,
+                  child: Container(
+                    height: 150,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey),
+                    ),
+                    child: _selectedImage != null
+                        ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                        : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_photo_alternate, size: 50, color: Colors.grey),
+                              Text('Agregar imagen', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _titleController,
                   decoration: InputDecoration(
@@ -266,6 +378,25 @@ class _EventsScreenState extends State<EventsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory == Categories.todos ? Categories.values.first : _selectedCategory,
+                  decoration: InputDecoration(
+                    labelText: 'Categoría',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  items: Categories.values.map((category) => 
+                    DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    )
+                  ).toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedCategory = value!);
+                  },
+                ),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _locationController,
                   decoration: InputDecoration(
@@ -314,6 +445,15 @@ class _EventsScreenState extends State<EventsScreen> {
                   onChanged: (value) {
                     _availableSpots = int.tryParse(value);
                   },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor ingresa el número de cupos';
+                    }
+                    if (int.tryParse(value) == null) {
+                      return 'Por favor ingresa un número válido';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -325,6 +465,12 @@ class _EventsScreenState extends State<EventsScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor ingresa una descripción';
+                    }
+                    return null;
+                  },
                 ),
               ],
             ),
@@ -336,11 +482,20 @@ class _EventsScreenState extends State<EventsScreen> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: _createActivity,
+            onPressed: _isUploadingImage ? null : _createActivity,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF4CAF50),
             ),
-            child: const Text('Crear Evento'),
+            child: _isUploadingImage
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text('Crear Evento'),
           ),
         ],
       ),
