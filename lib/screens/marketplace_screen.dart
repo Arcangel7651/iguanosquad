@@ -95,23 +95,33 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     List<String> uploadedUrls = [];
     const String storageFolder = 'articulos';
     const String bucketName =
-        'marketplace'; // Asegúrate de que este sea el nombre correcto del bucket
+        'markedplace'; // Asegúrate de que este sea el nombre correcto del bucket
 
     for (var image in _selectedImages) {
       try {
         final String fileName =
             '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}.${image.path.split('.').last}';
 
+        debugPrint('Subiendo imagen: $fileName');
+
         // Subir imagen al storage
         final response = await _supabase.storage.from(bucketName).upload(
               '$storageFolder/$fileName',
               image,
             );
+
+        final String filePath = '$storageFolder/$fileName';
+        final String imageUrl =
+            _supabase.storage.from(bucketName).getPublicUrl(filePath);
+
+        uploadedUrls.add(imageUrl);
+        debugPrint('Imagen subida exitosamente: $imageUrl');
       } catch (e) {
         debugPrint('Error subiendo imagen: $e');
       }
     }
 
+    debugPrint('URLs de las imágenes subidas: $uploadedUrls');
     return uploadedUrls;
   }
 
@@ -275,6 +285,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         children: [
           Expanded(
             child: Container(
+              width: double
+                  .infinity, // Asegura que el contenedor ocupe todo el ancho disponible
+              height: 300.0, // Aumenta la altura para que se vea más alta
               decoration: BoxDecoration(
                 color: Colors.grey[200],
                 borderRadius: const BorderRadius.vertical(
@@ -283,7 +296,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 image: product.imgs != null && product.imgs!.isNotEmpty
                     ? DecorationImage(
                         image: NetworkImage(product.imgs!.first),
-                        fit: BoxFit.cover,
+                        fit: BoxFit
+                            .cover, // Mantiene la proporción de la imagen y la adapta al contenedor
                       )
                     : null,
               ),
