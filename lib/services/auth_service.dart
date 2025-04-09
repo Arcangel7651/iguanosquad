@@ -51,34 +51,26 @@ class AuthService {
     required String password,
     required String ubicacion,
   }) async {
-    // 1. Crear credenciales en Auth
+    // 1. Registrar usuario con email y password
     final res = await _supabase.auth.signUp(
       email: email,
       password: password,
-      data: {
-        'nombre': nombre,
-        'ubicacion': ubicacion,
-      },
     );
 
-    if (res.user == null) {
-      throw Exception('Error al crear la cuenta: revisa tus credenciales');
-    }
+    final user = res.user!;
 
-    // 2. Insertar fila en la tabla `usuario`, incluyendo la contraseña
+    // 2. Insertar datos adicionales en tu tabla `usuario`
     final insertRes = await _supabase
         .from('usuario')
         .insert({
+          'id': user.id,
           'nombre': nombre,
           'correo_electronico': email,
           'ubicacion': ubicacion,
-          'contraseña': password, // ← aquí
         })
-        .select() // para que devuelva el registro insertado
-        .single()
-        .execute();
+        .select()
+        .single();
 
-    final data = insertRes.data as Map<String, dynamic>;
-    return Usuario.fromJson(data);
+    return Usuario.fromJson(insertRes as Map<String, dynamic>);
   }
 }

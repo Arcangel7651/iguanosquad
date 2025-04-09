@@ -43,7 +43,7 @@ class EcoXApp extends StatelessWidget {
           ),
         ),
       ),
-      initialRoute: Routes.login,
+      initialRoute: Routes.home,
       routes: Routes.getRoutes(),
     );
   }
