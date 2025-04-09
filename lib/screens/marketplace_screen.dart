@@ -1,3 +1,4 @@
+// lib/screens/marketplace_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,23 +30,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   List<File> _selectedImages = [];
   bool _isUploadingImages = false;
 
-  // ScrollController para detectar scroll hacia arriba
-  final ScrollController _scrollController = ScrollController();
-
   @override
   void initState() {
     super.initState();
     _loadProducts();
-    
-    // Agregar listener al scroll controller para detectar cuando está en la parte superior
-    _scrollController.addListener(_scrollListener);
-  }
-
-  void _scrollListener() {
-    // Si estamos en la parte superior y el usuario sigue intentando hacer scroll hacia arriba
-    if (_scrollController.position.pixels == _scrollController.position.minScrollExtent) {
-      _loadProducts();
-    }
   }
 
   @override
@@ -54,7 +42,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     _descriptionController.dispose();
     _priceController.dispose();
     _locationController.dispose();
-    _scrollController.dispose(); // Importante liberar el scroll controller
     super.dispose();
   }
 
@@ -107,57 +94,22 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Future<List<String>> _uploadImages() async {
     List<String> uploadedUrls = [];
-<<<<<<< HEAD
 
     for (var image in _selectedImages) {
       try {
         final String fileName =
             '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}${image.path.split('.').last}';
         final String storageFolder = 'articulos';
-=======
-    
-    setState(() => _isUploadingImages = true);
-    
-    for (var image in _selectedImages) {
-      try {
-        // Generar un nombre único para la imagen
-        final String fileExtension = image.path.split('.').last;
-        final String fileName = '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}.$fileExtension';
-        final String storageFolder = 'articulos';
-        
-        // Leer el archivo como bytes para subirlo
-        final bytes = await image.readAsBytes();
-        
-        // Subir a Supabase Storage
-        final response = await _supabase
-            .storage
-            .from(storageFolder)
-            .uploadBinary(fileName, bytes);
->>>>>>> cf3700b (feat: 2nd version)
 
         final response =
             await _supabase.storage.from(storageFolder).upload(fileName, image);
 
-<<<<<<< HEAD
         final String imageUrl =
             _supabase.storage.from(storageFolder).getPublicUrl(fileName);
-=======
-        // Obtener la URL pública de la imagen
-        final String imageUrl = _supabase
-            .storage
-            .from(storageFolder)
-            .getPublicUrl(fileName);
->>>>>>> cf3700b (feat: 2nd version)
 
         uploadedUrls.add(imageUrl);
       } catch (e) {
         debugPrint('Error subiendo imagen: $e');
-        // Mostrar un error pero continuar con las demás imágenes
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al subir una imagen: $e')),
-          );
-        }
       }
     }
 
@@ -177,59 +129,34 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         imageUrls = await _uploadImages();
       }
 
-      // Crear el objeto JSON para insertar en Supabase
-      final productData = {
+      await _supabase.from('articulo').insert({
         'nombre': _titleController.text,
         'descripcion': _descriptionController.text,
         'estado': _selectedState,
         'precio': double.parse(_priceController.text),
         'ubicacion': _locationController.text,
-<<<<<<< HEAD
         'imgs': imageUrls,
         'tipo_categoria': _selectedCategory == ProductCategories.todos
             ? ProductCategories.values.first
-=======
-        'imgs': imageUrls, // Esto se convertirá automáticamente en JSONB
-        'tipo_categoria': _selectedCategory == ProductCategories.todos 
-            ? ProductCategories.values.first 
->>>>>>> cf3700b (feat: 2nd version)
             : _selectedCategory,
-      };
-
-      // Insertar en la base de datos
-      final response = await _supabase
-          .from('articulo')
-          .insert(productData)
-          .execute();
-          
-      if (response.error != null) {
-        throw response.error!;
-      }
+      }).execute();
 
       if (mounted) {
         Navigator.pop(context);
-        _loadProducts(); // Recargar productos después de crear uno nuevo
+        _loadProducts();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Producto publicado exitosamente')),
         );
       }
     } catch (e) {
-      debugPrint('Error al crear producto: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al publicar el producto: $e')),
+          const SnackBar(content: Text('Error al publicar el producto')),
         );
       }
     } finally {
       setState(() => _isUploadingImages = false);
     }
-  }
-
-  // Eliminar una imagen seleccionada
-  void _removeSelectedImage(int index) {
-    setState(() {
-      _selectedImages.removeAt(index);
-    });
   }
 
   List<Product> _getFilteredProducts() {
@@ -292,13 +219,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       ? const Center(
                           child: Text('No hay productos disponibles'))
                       : GridView.builder(
-<<<<<<< HEAD
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-=======
-                          controller: _scrollController, // Asignar el controller
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
->>>>>>> cf3700b (feat: 2nd version)
                             crossAxisCount: 2,
                             childAspectRatio: 0.75,
                             mainAxisSpacing: 16,
@@ -489,7 +411,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                   style: TextStyle(color: Colors.grey)),
                             ],
                           )
-<<<<<<< HEAD
                         : GridView.count(
                             crossAxisCount: 3,
                             mainAxisSpacing: 4,
@@ -499,62 +420,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 .map((image) =>
                                     Image.file(image, fit: BoxFit.cover))
                                 .toList(),
-=======
-                        : Stack(
-                            children: [
-                              GridView.builder(
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 3,
-                                  mainAxisSpacing: 4,
-                                  crossAxisSpacing: 4,
-                                ),
-                                padding: const EdgeInsets.all(4),
-                                itemCount: _selectedImages.length,
-                                itemBuilder: (context, index) {
-                                  return Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: Image.file(
-                                          _selectedImages[index],
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                      Positioned(
-                                        top: 0,
-                                        right: 0,
-                                        child: InkWell(
-                                          onTap: () => _removeSelectedImage(index),
-                                          child: Container(
-                                            decoration: const BoxDecoration(
-                                              color: Colors.red,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            padding: const EdgeInsets.all(2),
-                                            child: const Icon(
-                                              Icons.close,
-                                              size: 16,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                              Positioned(
-                                bottom: 8,
-                                right: 8,
-                                child: FloatingActionButton.small(
-                                  onPressed: _pickImages,
-                                  backgroundColor: const Color(0xFF4CAF50),
-                                  child: const Icon(Icons.add_photo_alternate, color: Colors.white),
-                                ),
-                              ),
-                            ],
->>>>>>> cf3700b (feat: 2nd version)
                           ),
                   ),
                 ),

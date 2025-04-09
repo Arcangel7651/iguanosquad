@@ -14,20 +14,28 @@ class AuthService {
       email: email,
       password: password,
     );
-    if (authRes.session == null) {
-      throw Exception('Credenciales inválidas');
+
+    final user = authRes.user;
+    if (user == null) {
+      throw Exception('No se obtuvo sesión de usuario');
     }
 
-    // 2. Traer el usuario de la tabla (incluye la contraseña que guardaste)
+    // 2. Traer datos extra del usuario (sin contraseña)
     final resp = await _supabase
         .from('usuario')
         .select(
-            'id,nombre,correo_electronico,telefono,ubicacion,historial_participacion,contraseña')
-        .eq('correo_electronico', email)
-        .single()
-        .execute();
+            'id, nombre, correo_electronico, telefono, ubicacion, historial_participacion')
+        .eq('id', user.id)
+        .maybeSingle(); // no lanza excepción si no existe
 
-    final data = resp.data as Map<String, dynamic>;
+    if (resp.error != null) {
+      throw Exception('Error al cargar perfil: ${resp.error!.message}');
+    }
+    final data = resp.data as Map<String, dynamic>?;
+    if (data == null) {
+      throw Exception('Usuario no encontrado en la tabla “usuario”');
+    }
+
     return Usuario.fromJson(data);
   }
 

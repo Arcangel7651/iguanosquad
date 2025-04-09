@@ -28,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
     try {
@@ -35,15 +36,14 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      // Login exitoso: navegar y pasar el usuario
       Navigator.of(context).pushNamedAndRemoveUntil(
         Routes.home,
         (_) => false,
         arguments: user,
       );
-    } catch (e) {
+    } on Exception catch (err) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text(err.toString().replaceFirst('Exception: ', ''))),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

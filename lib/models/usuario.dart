@@ -1,4 +1,3 @@
-// lib/models/usuario.dart
 class Usuario {
   final int id;
   final String nombre;
@@ -6,7 +5,6 @@ class Usuario {
   final String? telefono;
   final String? ubicacion;
   final String? historialParticipacion;
-  final String? contrasena; // ← nuevo
 
   Usuario({
     required this.id,
@@ -15,7 +13,6 @@ class Usuario {
     this.telefono,
     this.ubicacion,
     this.historialParticipacion,
-    this.contrasena,
   });
 
   factory Usuario.fromJson(Map<String, dynamic> json) => Usuario(
@@ -25,7 +22,6 @@ class Usuario {
         telefono: json['telefono'] as String?,
         ubicacion: json['ubicacion'] as String?,
         historialParticipacion: json['historial_participacion'] as String?,
-        contrasena: json['contraseña'] as String?, // ← mapeo
       );
 
   Map<String, dynamic> toJson() => {
@@ -35,6 +31,5 @@ class Usuario {
         'telefono': telefono,
         'ubicacion': ubicacion,
         'historial_participacion': historialParticipacion,
-        'contraseña': contrasena, // ← para serializar
       };
 }
