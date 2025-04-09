@@ -46,34 +46,33 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Future<void> _loadProducts() async {
-  setState(() => _isLoading = true);
-  try {
-    // Usa select() sin execute() según la API más reciente de Supabase Flutter
-    final response = await _supabase
-        .from('articulo')
-        .select()
-        .order('id', ascending: false);
+    setState(() => _isLoading = true);
+    try {
+      // Usa select() sin execute() según la API más reciente de Supabase Flutter
+      final response = await _supabase
+          .from('articulo')
+          .select()
+          .order('id', ascending: false);
 
-    if (response != null) {
-      setState(() {
-        _products = (response as List)
-            .map((json) => Product.fromJson(json))
-            .toList();
-      });
-    }
-  } catch (e) {
-    debugPrint('Error cargando productos: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al cargar los productos')),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
+      if (response != null) {
+        setState(() {
+          _products =
+              (response as List).map((json) => Product.fromJson(json)).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando productos: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar los productos')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-}
 
   Future<void> _pickImages() async {
     try {
@@ -91,84 +90,78 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       debugPrint('Error seleccionando imágenes: $e');
     }
   }
-Future<List<String>> _uploadImages() async {
-  List<String> uploadedUrls = [];
 
-  for (var image in _selectedImages) {
-    try {
-      final String fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}.${image.path.split('.').last}';
-      final String storageFolder = 'articulos';
+  Future<List<String>> _uploadImages() async {
+    List<String> uploadedUrls = [];
+    const String storageFolder = 'articulos';
+    const String bucketName =
+        'marketplace'; // Asegúrate de que este sea el nombre correcto del bucket
 
-      // Supabase Storage upload
-      final response = await _supabase.storage
-          .from(storageFolder)
-          .upload(fileName, image);
+    for (var image in _selectedImages) {
+      try {
+        final String fileName =
+            '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}.${image.path.split('.').last}';
 
-      // Verificamos que la respuesta no esté vacía
-      if (response != null) {
-        // Obtener la URL pública del archivo subido
-        final String imageUrl =
-            _supabase.storage.from(storageFolder).getPublicUrl(fileName);
-        
-        uploadedUrls.add(imageUrl);
-        debugPrint('Imagen subida exitosamente: $imageUrl');
+        // Subir imagen al storage
+        final response = await _supabase.storage.from(bucketName).upload(
+              '$storageFolder/$fileName',
+              image,
+            );
+      } catch (e) {
+        debugPrint('Error subiendo imagen: $e');
       }
-    } catch (e) {
-      debugPrint('Error subiendo imagen: $e');
     }
-  }
 
-  return uploadedUrls;
-}
+    return uploadedUrls;
+  }
 
   Future<void> _createProduct() async {
-  if (!_formKey.currentState!.validate()) {
-    return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isUploadingImages = true);
+    List<String> imageUrls = [];
+
+    try {
+      if (_selectedImages.isNotEmpty) {
+        imageUrls = await _uploadImages();
+        debugPrint('URLs de imágenes subidas: $imageUrls');
+      }
+
+      // Verificamos que tengamos las URLs antes de insertar
+      final response = await _supabase.from('articulo').insert({
+        'nombre': _titleController.text,
+        'descripcion': _descriptionController.text,
+        'estado': _selectedState,
+        'precio': double.parse(_priceController.text),
+        'ubicacion': _locationController.text,
+        'imgs': imageUrls, // Pasamos la lista de URLs
+        'tipo_categoria': _selectedCategory == ProductCategories.todos
+            ? ProductCategories.values.first
+            : _selectedCategory,
+      });
+
+      debugPrint('Respuesta de inserción: $response');
+
+      if (mounted) {
+        Navigator.pop(context);
+        _loadProducts();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Producto publicado exitosamente')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error al publicar el producto: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al publicar el producto')),
+        );
+      }
+    } finally {
+      setState(() => _isUploadingImages = false);
+    }
   }
-
-  setState(() => _isUploadingImages = true);
-  List<String> imageUrls = [];
-
-  try {
-    if (_selectedImages.isNotEmpty) {
-      imageUrls = await _uploadImages();
-      debugPrint('URLs de imágenes subidas: $imageUrls');
-    }
-
-    // Verificamos que tengamos las URLs antes de insertar
-    final response = await _supabase.from('articulo').insert({
-      'nombre': _titleController.text,
-      'descripcion': _descriptionController.text,
-      'estado': _selectedState,
-      'precio': double.parse(_priceController.text),
-      'ubicacion': _locationController.text,
-      'imgs': imageUrls, // Pasamos la lista de URLs
-      'tipo_categoria': _selectedCategory == ProductCategories.todos
-          ? ProductCategories.values.first
-          : _selectedCategory,
-    });
-
-    debugPrint('Respuesta de inserción: $response');
-
-    if (mounted) {
-      Navigator.pop(context);
-      _loadProducts();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Producto publicado exitosamente')),
-      );
-    }
-  } catch (e) {
-    debugPrint('Error al publicar el producto: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al publicar el producto')),
-      );
-    }
-  } finally {
-    setState(() => _isUploadingImages = false);
-  }
-}
 
   List<Product> _getFilteredProducts() {
     if (_selectedCategory == ProductCategories.todos) {
@@ -381,245 +374,257 @@ Future<List<String>> _uploadImages() async {
       ),
     );
   }
-void _showPublishProductDialog(BuildContext context) {
-  // Resetear valores
-  _titleController.clear();
-  _descriptionController.clear();
-  _priceController.clear();
-  _locationController.clear();
-  _selectedImages = []; // Limpiamos la lista de imágenes seleccionadas
-  _selectedState = ProductCategories.estados.first;
 
-  showDialog(
-    context: context,
-    builder: (dialogContext) => StatefulBuilder( // Usamos StatefulBuilder para manejar el estado dentro del diálogo
-      builder: (context, setDialogState) {
-        return AlertDialog(
-          title: const Text('Publicar Artículo'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Selector de imágenes mejorado
-                  InkWell(
-                    onTap: () async {
-                      await _pickImages();
-                      // Actualizamos el estado del diálogo después de seleccionar imágenes
-                      setDialogState(() {});
-                    },
-                    child: Container(
-                      height: 150,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey),
-                      ),
-                      child: _selectedImages.isEmpty
-                          ? const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.add_photo_alternate,
-                                    size: 50, color: Colors.grey),
-                                Text('Agregar imágenes',
-                                    style: TextStyle(color: Colors.grey)),
-                              ],
-                            )
-                          : Stack(
-                              children: [
-                                GridView.count(
-                                  crossAxisCount: 3,
-                                  mainAxisSpacing: 4,
-                                  crossAxisSpacing: 4,
-                                  padding: const EdgeInsets.all(4),
-                                  children: _selectedImages
-                                      .map((image) => Stack(
-                                            fit: StackFit.expand,
-                                            children: [
-                                              ClipRRect(
-                                                borderRadius: BorderRadius.circular(4),
-                                                child: Image.file(
-                                                  image,
-                                                  fit: BoxFit.cover,
+  void _showPublishProductDialog(BuildContext context) {
+    // Resetear valores
+    _titleController.clear();
+    _descriptionController.clear();
+    _priceController.clear();
+    _locationController.clear();
+    _selectedImages = []; // Limpiamos la lista de imágenes seleccionadas
+    _selectedState = ProductCategories.estados.first;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        // Usamos StatefulBuilder para manejar el estado dentro del diálogo
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Publicar Artículo'),
+            content: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Selector de imágenes mejorado
+                    InkWell(
+                      onTap: () async {
+                        await _pickImages();
+                        // Actualizamos el estado del diálogo después de seleccionar imágenes
+                        setDialogState(() {});
+                      },
+                      child: Container(
+                        height: 150,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey),
+                        ),
+                        child: _selectedImages.isEmpty
+                            ? const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_photo_alternate,
+                                      size: 50, color: Colors.grey),
+                                  Text('Agregar imágenes',
+                                      style: TextStyle(color: Colors.grey)),
+                                ],
+                              )
+                            : Stack(
+                                children: [
+                                  GridView.count(
+                                    crossAxisCount: 3,
+                                    mainAxisSpacing: 4,
+                                    crossAxisSpacing: 4,
+                                    padding: const EdgeInsets.all(4),
+                                    children: _selectedImages
+                                        .map((image) => Stack(
+                                              fit: StackFit.expand,
+                                              children: [
+                                                ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                  child: Image.file(
+                                                    image,
+                                                    fit: BoxFit.cover,
+                                                  ),
                                                 ),
-                                              ),
-                                              Positioned(
-                                                top: 0,
-                                                right: 0,
-                                                child: GestureDetector(
-                                                  onTap: () {
-                                                    setDialogState(() {
-                                                      _selectedImages.remove(image);
-                                                    });
-                                                  },
-                                                  child: Container(
-                                                    decoration: const BoxDecoration(
-                                                      color: Colors.red,
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                    padding: const EdgeInsets.all(4),
-                                                    child: const Icon(
-                                                      Icons.close,
-                                                      size: 16,
-                                                      color: Colors.white,
+                                                Positioned(
+                                                  top: 0,
+                                                  right: 0,
+                                                  child: GestureDetector(
+                                                    onTap: () {
+                                                      setDialogState(() {
+                                                        _selectedImages
+                                                            .remove(image);
+                                                      });
+                                                    },
+                                                    child: Container(
+                                                      decoration:
+                                                          const BoxDecoration(
+                                                        color: Colors.red,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              4),
+                                                      child: const Icon(
+                                                        Icons.close,
+                                                        size: 16,
+                                                        color: Colors.white,
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
-                                              ),
-                                            ],
-                                          ))
-                                      .toList(),
-                                ),
-                                Positioned(
-                                  bottom: 8,
-                                  right: 8,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      await _pickImages();
-                                      setDialogState(() {});
-                                    },
-                                    icon: const Icon(Icons.add_photo_alternate, size: 16),
-                                    label: const Text('Más fotos'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF4CAF50),
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      visualDensity: VisualDensity.compact,
+                                              ],
+                                            ))
+                                        .toList(),
+                                  ),
+                                  Positioned(
+                                    bottom: 8,
+                                    right: 8,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        await _pickImages();
+                                        setDialogState(() {});
+                                      },
+                                      icon: const Icon(
+                                          Icons.add_photo_alternate,
+                                          size: 16),
+                                      label: const Text('Más fotos'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF4CAF50),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                  
-                  // Campos del formulario original
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _titleController,
-                    decoration: InputDecoration(
-                      labelText: 'Título del Artículo',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                                ],
+                              ),
                       ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingresa un título';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _selectedCategory == ProductCategories.todos
-                        ? ProductCategories.values.first
-                        : _selectedCategory,
-                    decoration: InputDecoration(
-                      labelText: 'Categoría',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+
+                    // Campos del formulario original
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _titleController,
+                      decoration: InputDecoration(
+                        labelText: 'Título del Artículo',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor ingresa un título';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _selectedCategory == ProductCategories.todos
+                          ? ProductCategories.values.first
+                          : _selectedCategory,
+                      decoration: InputDecoration(
+                        labelText: 'Categoría',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      items: ProductCategories.values
+                          .map((category) => DropdownMenuItem(
+                                value: category,
+                                child: Text(category),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setDialogState(() => _selectedCategory = value!);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _selectedState,
+                      decoration: InputDecoration(
+                        labelText: 'Estado',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      items: ProductCategories.estados
+                          .map((estado) => DropdownMenuItem(
+                                value: estado,
+                                child: Text(estado),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setDialogState(() => _selectedState = value!);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _priceController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Precio (\$)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor ingresa un precio';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Por favor ingresa un precio válido';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _locationController,
+                      decoration: InputDecoration(
+                        labelText: 'Ubicación',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
-                    items: ProductCategories.values
-                        .map((category) => DropdownMenuItem(
-                              value: category,
-                              child: Text(category),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      setDialogState(() => _selectedCategory = value!);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _selectedState,
-                    decoration: InputDecoration(
-                      labelText: 'Estado',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _descriptionController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Descripción',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
-                    items: ProductCategories.estados
-                        .map((estado) => DropdownMenuItem(
-                              value: estado,
-                              child: Text(estado),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      setDialogState(() => _selectedState = value!);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _priceController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Precio (\$)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingresa un precio';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'Por favor ingresa un precio válido';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _locationController,
-                    decoration: InputDecoration(
-                      labelText: 'Ubicación',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _descriptionController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      labelText: 'Descripción',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: _isUploadingImages ? null : _createProduct,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar'),
               ),
-              child: _isUploadingImages
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text('Publicar Artículo'),
-            ),
-          ],
-        );
-      },
-    ),
-  );
+              ElevatedButton(
+                onPressed: _isUploadingImages ? null : _createProduct,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                ),
+                child: _isUploadingImages
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text('Publicar Artículo'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
