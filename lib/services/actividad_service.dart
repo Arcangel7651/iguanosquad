@@ -1,38 +1,41 @@
-import 'package:iguanosquad/models/event.dart';
+import 'package:iguanosquad/models/activity.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class ActividadService {
+class ActivityService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<ActividadConservacion> crearActividad({
+  Future<Activity> createActivity({
     required String nombre,
     String? descripcion,
     String? ubicacion,
     required DateTime fechaHora,
-    String? tipoActividad,
+    String? tipoActividad, // 'Presencial' | 'Virtual'
     int? disponibilidadCupos,
     String? materialesRequeridos,
     String? urlImage,
-    String? tipoCategoria,
+    String?
+        tipoCategoria, // 'limpieza', 'reciclaje', 'educacion', 'planteacion'
   }) async {
+    // Validamos que el tipo de actividad y tipo de categoria sean correctos
     final tiposActividadValidos = ['Presencial', 'Virtual'];
     final tiposCategoriaValidos = [
       'limpieza',
       'reciclaje',
       'educacion',
-      'planteacion',
+      'planteacion'
     ];
 
     if (tipoActividad != null &&
         !tiposActividadValidos.contains(tipoActividad)) {
-      throw Exception('tipo_actividad inválido');
+      throw Exception('Tipo de actividad inválido');
     }
 
     if (tipoCategoria != null &&
         !tiposCategoriaValidos.contains(tipoCategoria)) {
-      throw Exception('tipo_categoria inválido');
+      throw Exception('Tipo de categoría inválido');
     }
 
+    // Realizamos la inserción en la base de datos
     final res = await _supabase
         .from('actividad_conservacion')
         .insert({
@@ -50,6 +53,6 @@ class ActividadService {
         .single()
         .execute();
 
-    return ActividadConservacion.fromJson(res.data as Map<String, dynamic>);
+    return Activity.fromJson(res.data as Map<String, dynamic>);
   }
 }
