@@ -1,8 +1,180 @@
 // lib/screens/marketplace_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import '../constants/product_categories.dart';
+import '../models/product.dart';
 
-class MarketplaceScreen extends StatelessWidget {
+class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({Key? key}) : super(key: key);
+
+  @override
+  State<MarketplaceScreen> createState() => _MarketplaceScreenState();
+}
+
+class _MarketplaceScreenState extends State<MarketplaceScreen> {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final ImagePicker _imagePicker = ImagePicker();
+  List<Product> _products = [];
+  bool _isLoading = true;
+  String _selectedCategory = ProductCategories.todos;
+  
+  // Controladores y variables para el formulario
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _priceController = TextEditingController();
+  final _locationController = TextEditingController();
+  String _selectedState = ProductCategories.estados.first;
+  List<File> _selectedImages = [];
+  bool _isUploadingImages = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProducts();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProducts() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _supabase
+          .from('articulo')
+          .select()
+          .order('id', ascending: false)
+          .execute();
+
+      if (response.data != null) {
+        setState(() {
+          _products = (response.data as List)
+              .map((json) => Product.fromJson(json))
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando productos: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar los productos')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _pickImages() async {
+    try {
+      final List<XFile> images = await _imagePicker.pickMultiImage(
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      if (images.isNotEmpty) {
+        setState(() {
+          _selectedImages.addAll(images.map((image) => File(image.path)));
+        });
+      }
+    } catch (e) {
+      debugPrint('Error seleccionando imágenes: $e');
+    }
+  }
+
+  Future<List<String>> _uploadImages() async {
+    List<String> uploadedUrls = [];
+    
+    for (var image in _selectedImages) {
+      try {
+        final String fileName = '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}${image.path.split('.').last}';
+        final String storageFolder = 'articulos';
+        
+        final response = await _supabase
+            .storage
+            .from(storageFolder)
+            .upload(fileName, image);
+
+        if (response.error != null) {
+          throw response.error!;
+        }
+
+        final String imageUrl = _supabase
+            .storage
+            .from(storageFolder)
+            .getPublicUrl(fileName)
+            .data!;
+
+        uploadedUrls.add(imageUrl);
+      } catch (e) {
+        debugPrint('Error subiendo imagen: $e');
+      }
+    }
+
+    return uploadedUrls;
+  }
+
+  Future<void> _createProduct() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isUploadingImages = true);
+    List<String> imageUrls = [];
+
+    try {
+      if (_selectedImages.isNotEmpty) {
+        imageUrls = await _uploadImages();
+      }
+
+      await _supabase.from('articulo').insert({
+        'nombre': _titleController.text,
+        'descripcion': _descriptionController.text,
+        'estado': _selectedState,
+        'precio': double.parse(_priceController.text),
+        'ubicacion': _locationController.text,
+        'imgs': imageUrls,
+        'tipo_categoria': _selectedCategory == ProductCategories.todos 
+            ? ProductCategories.values.first 
+            : _selectedCategory,
+      }).execute();
+
+      if (mounted) {
+        Navigator.pop(context);
+        _loadProducts();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Producto publicado exitosamente')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al publicar el producto')),
+        );
+      }
+    } finally {
+      setState(() => _isUploadingImages = false);
+    }
+  }
+
+  List<Product> _getFilteredProducts() {
+    if (_selectedCategory == ProductCategories.todos) {
+      return _products;
+    }
+    return _products
+        .where((product) => product.tipoCategoria == _selectedCategory)
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,41 +207,39 @@ class MarketplaceScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Categorías
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.all(8),
             child: Row(
               children: [
-                _buildCategoryChip('Todos', true),
-                _buildCategoryChip('Hogar', false),
-                _buildCategoryChip('Cocina', false),
-                _buildCategoryChip('Jardín', false),
-                _buildCategoryChip('Ropa', false),
+                _buildCategoryChip(ProductCategories.todos, 'Todos'),
+                ...ProductCategories.values.map((category) => 
+                  _buildCategoryChip(category, category)
+                ),
               ],
             ),
           ),
-          // Grid de productos
           Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              padding: const EdgeInsets.all(16),
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              children: [
-                _buildProductCard(
-                  'Botella Reutilizable Eco',
-                  12.99,
-                  true,
-                  2,
-                ),
-                _buildProductCard(
-                  'Set de Cubiertos Bambú',
-                  8.50,
-                  true,
-                  5,
-                ),
-              ],
+            child: RefreshIndicator(
+              onRefresh: _loadProducts,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _getFilteredProducts().isEmpty
+                      ? const Center(child: Text('No hay productos disponibles'))
+                      : GridView.builder(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.75,
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                          ),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _getFilteredProducts().length,
+                          itemBuilder: (context, index) {
+                            final product = _getFilteredProducts()[index];
+                            return _buildProductCard(product);
+                          },
+                        ),
             ),
           ),
         ],
@@ -77,23 +247,27 @@ class MarketplaceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoryChip(String label, bool isSelected) {
+  Widget _buildCategoryChip(String value, String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: FilterChip(
         label: Text(label),
-        selected: isSelected,
-        onSelected: (bool selected) {},
+        selected: _selectedCategory == value,
+        onSelected: (bool selected) {
+          setState(() => _selectedCategory = value);
+        },
         backgroundColor: Colors.grey[200],
         selectedColor: Colors.green[100],
         labelStyle: TextStyle(
-          color: isSelected ? const Color(0xFF4CAF50) : Colors.grey[700],
+          color: _selectedCategory == value
+              ? const Color(0xFF4CAF50)
+              : Colors.grey[700],
         ),
       ),
     );
   }
 
-  Widget _buildProductCard(String title, double price, bool isNew, int comments) {
+  Widget _buildProductCard(Product product) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -102,7 +276,6 @@ class MarketplaceScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Imagen del producto (placeholder)
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -110,10 +283,18 @@ class MarketplaceScreen extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(12),
                 ),
+                image: product.imgs != null && product.imgs!.isNotEmpty
+                    ? DecorationImage(
+                        image: NetworkImage(product.imgs!.first),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
-              child: const Center(
-                child: Icon(Icons.image, size: 40, color: Colors.grey),
-              ),
+              child: product.imgs == null || product.imgs!.isEmpty
+                  ? const Center(
+                      child: Icon(Icons.image, size: 40, color: Colors.grey),
+                    )
+                  : null,
             ),
           ),
           Padding(
@@ -122,59 +303,71 @@ class MarketplaceScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  product.nombre,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF4CAF50),
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '\$$price',
+                      '\$${product.precio?.toStringAsFixed(2) ?? "0.00"}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (isNew)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green[50],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'Nuevo',
-                          style: TextStyle(
-                            color: Color(0xFF4CAF50),
-                            fontSize: 12,
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        product.estado ?? 'N/A',
+                        style: const TextStyle(
+                          color: Color(0xFF4CAF50),
+                          fontSize: 12,
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.comment, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text('$comments',
-                        style: const TextStyle(color: Colors.grey)),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () {},
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(50, 30),
-                      ),
-                      child: const Text('Ver'),
                     ),
                   ],
+                ),
+                if (product.ubicacion != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          product.ubicacion!,
+                          style: const TextStyle(color: Colors.grey),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 4),
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      // Implementar vista detallada del producto
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    child: const Text('Ver detalles'),
+                  ),
                 ),
               ],
             ),
@@ -184,47 +377,154 @@ class MarketplaceScreen extends StatelessWidget {
     );
   }
 
-  static void _showPublishProductDialog(BuildContext context) {
+  void _showPublishProductDialog(BuildContext context) {
+    // Resetear valores
+    _titleController.clear();
+    _descriptionController.clear();
+    _priceController.clear();
+    _locationController.clear();
+    _selectedImages.clear();
+    _selectedState = ProductCategories.estados.first;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Publicar Artículo'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Título del Artículo',
-                  hintText: 'Ej: Botella Reutilizable',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Selector de imágenes
+                InkWell(
+                  onTap: _pickImages,
+                  child: Container(
+                    height: 150,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey),
+                    ),
+                    child: _selectedImages.isEmpty
+                        ? const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_photo_alternate, size: 50, color: Colors.grey),
+                              Text('Agregar imágenes', style: TextStyle(color: Colors.grey)),
+                            ],
+                          )
+                        : GridView.count(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 4,
+                            crossAxisSpacing: 4,
+                            padding: const EdgeInsets.all(4),
+                            children: _selectedImages.map((image) =>
+                              Image.file(image, fit: BoxFit.cover)
+                            ).toList(),
+                          ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Precio (\$)',
-                  hintText: 'Ej: 15.99',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    labelText: 'Título del Artículo',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor ingresa un título';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory == ProductCategories.todos 
+                      ? ProductCategories.values.first 
+                      : _selectedCategory,
+                  decoration: InputDecoration(
+                    labelText: 'Categoría',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  items: ProductCategories.values.map((category) => 
+                    DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    )
+                  ).toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedCategory = value!);
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedState,
+                  decoration: InputDecoration(
+                    labelText: 'Estado',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  items: ProductCategories.estados.map((estado) => 
+                    DropdownMenuItem(
+                      value: estado,
+                      child: Text(estado),
+                    )
+                  ).toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedState = value!);
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _priceController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Precio (\$)',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor ingresa un precio';
+                    }
+                    if (double.tryParse(value) == null) {
+                      return 'Por favor ingresa un precio válido';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _locationController,
+                  decoration: InputDecoration(
+                    labelText: 'Ubicación',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Descripción',
-                  hintText: 'Describe tu artículo...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Descripción',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
@@ -233,11 +533,20 @@ class MarketplaceScreen extends StatelessWidget {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: _isUploadingImages ? null : _createProduct,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF4CAF50),
             ),
-            child: const Text('Publicar Artículo'),
+            child: _isUploadingImages
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text('Publicar Artículo'),
           ),
         ],
       ),
