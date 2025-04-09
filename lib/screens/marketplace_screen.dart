@@ -19,7 +19,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   List<Product> _products = [];
   bool _isLoading = true;
   String _selectedCategory = ProductCategories.todos;
-  
+
   // Controladores y variables para el formulario
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
@@ -94,26 +94,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Future<List<String>> _uploadImages() async {
     List<String> uploadedUrls = [];
-    
+
     for (var image in _selectedImages) {
       try {
-        final String fileName = '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}${image.path.split('.').last}';
+        final String fileName =
+            '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}${image.path.split('.').last}';
         final String storageFolder = 'articulos';
-        
-        final response = await _supabase
-            .storage
-            .from(storageFolder)
-            .upload(fileName, image);
 
-        if (response.error != null) {
-          throw response.error!;
-        }
+        final response =
+            await _supabase.storage.from(storageFolder).upload(fileName, image);
 
-        final String imageUrl = _supabase
-            .storage
-            .from(storageFolder)
-            .getPublicUrl(fileName)
-            .data!;
+        final String imageUrl =
+            _supabase.storage.from(storageFolder).getPublicUrl(fileName);
 
         uploadedUrls.add(imageUrl);
       } catch (e) {
@@ -144,8 +136,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         'precio': double.parse(_priceController.text),
         'ubicacion': _locationController.text,
         'imgs': imageUrls,
-        'tipo_categoria': _selectedCategory == ProductCategories.todos 
-            ? ProductCategories.values.first 
+        'tipo_categoria': _selectedCategory == ProductCategories.todos
+            ? ProductCategories.values.first
             : _selectedCategory,
       }).execute();
 
@@ -213,9 +205,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             child: Row(
               children: [
                 _buildCategoryChip(ProductCategories.todos, 'Todos'),
-                ...ProductCategories.values.map((category) => 
-                  _buildCategoryChip(category, category)
-                ),
+                ...ProductCategories.values
+                    .map((category) => _buildCategoryChip(category, category)),
               ],
             ),
           ),
@@ -225,9 +216,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _getFilteredProducts().isEmpty
-                      ? const Center(child: Text('No hay productos disponibles'))
+                      ? const Center(
+                          child: Text('No hay productos disponibles'))
                       : GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
                             childAspectRatio: 0.75,
                             mainAxisSpacing: 16,
@@ -344,7 +337,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                      const Icon(Icons.location_on,
+                          size: 16, color: Colors.grey),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -411,8 +405,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         ? const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_photo_alternate, size: 50, color: Colors.grey),
-                              Text('Agregar imágenes', style: TextStyle(color: Colors.grey)),
+                              Icon(Icons.add_photo_alternate,
+                                  size: 50, color: Colors.grey),
+                              Text('Agregar imágenes',
+                                  style: TextStyle(color: Colors.grey)),
                             ],
                           )
                         : GridView.count(
@@ -420,9 +416,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             mainAxisSpacing: 4,
                             crossAxisSpacing: 4,
                             padding: const EdgeInsets.all(4),
-                            children: _selectedImages.map((image) =>
-                              Image.file(image, fit: BoxFit.cover)
-                            ).toList(),
+                            children: _selectedImages
+                                .map((image) =>
+                                    Image.file(image, fit: BoxFit.cover))
+                                .toList(),
                           ),
                   ),
                 ),
@@ -444,8 +441,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedCategory == ProductCategories.todos 
-                      ? ProductCategories.values.first 
+                  value: _selectedCategory == ProductCategories.todos
+                      ? ProductCategories.values.first
                       : _selectedCategory,
                   decoration: InputDecoration(
                     labelText: 'Categoría',
@@ -453,12 +450,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  items: ProductCategories.values.map((category) => 
-                    DropdownMenuItem(
-                      value: category,
-                      child: Text(category),
-                    )
-                  ).toList(),
+                  items: ProductCategories.values
+                      .map((category) => DropdownMenuItem(
+                            value: category,
+                            child: Text(category),
+                          ))
+                      .toList(),
                   onChanged: (value) {
                     setState(() => _selectedCategory = value!);
                   },
@@ -472,12 +469,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  items: ProductCategories.estados.map((estado) => 
-                    DropdownMenuItem(
-                      value: estado,
-                      child: Text(estado),
-                    )
-                  ).toList(),
+                  items: ProductCategories.estados
+                      .map((estado) => DropdownMenuItem(
+                            value: estado,
+                            child: Text(estado),
+                          ))
+                      .toList(),
                   onChanged: (value) {
                     setState(() => _selectedState = value!);
                   },
