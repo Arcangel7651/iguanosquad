@@ -1,9 +1,106 @@
 // lib/screens/events_screen.dart
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/activity.dart';
 import '../widgets/eco_event_card.dart';
+import 'package:intl/intl.dart';
 
-class EventsScreen extends StatelessWidget {
+class EventsScreen extends StatefulWidget {
   const EventsScreen({Key? key}) : super(key: key);
+
+  @override
+  State<EventsScreen> createState() => _EventsScreenState();
+}
+
+class _EventsScreenState extends State<EventsScreen> {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  List<Activity> _activities = [];
+  bool _isLoading = true;
+  String _selectedCategory = 'todos';
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _materialsController = TextEditingController();
+  DateTime? _selectedDate;
+  String _selectedActivityType = 'Presencial';
+  int? _availableSpots;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadActivities();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _locationController.dispose();
+    _materialsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadActivities() async {
+    try {
+      final response = await _supabase
+          .from('actividad_conservacion')
+          .select()
+          .order('fecha_hora', ascending: true)
+          .execute();
+
+      if (response.data != null) {
+        setState(() {
+          _activities = (response.data as List)
+              .map((json) => Activity.fromJson(json))
+              .toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando actividades: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  List<Activity> _getFilteredActivities() {
+    if (_selectedCategory == 'todos') {
+      return _activities;
+    }
+    return _activities
+        .where((activity) => activity.tipoCategoria == _selectedCategory)
+        .toList();
+  }
+
+  Future<void> _createActivity() async {
+    if (!_formKey.currentState!.validate() || _selectedDate == null) {
+      return;
+    }
+
+    try {
+      await _supabase.from('actividad_conservacion').insert({
+        'nombre': _titleController.text,
+        'descripcion': _descriptionController.text,
+        'ubicacion': _locationController.text,
+        'fecha_hora': _selectedDate!.toIso8601String(),
+        'tipo_actividad': _selectedActivityType,
+        'disponibilidad_cupos': _availableSpots,
+        'materiales_requeridos': _materialsController.text,
+        'tipo_categoria': _selectedCategory == 'todos' ? 'limpieza' : _selectedCategory,
+      }).execute();
+
+      if (mounted) {
+        Navigator.pop(context);
+        _loadActivities();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al crear la actividad')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,114 +133,201 @@ class EventsScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Categorías
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.all(8),
             child: Row(
               children: [
-                _buildCategoryChip('Todos', true),
-                _buildCategoryChip('Limpieza', false),
-                _buildCategoryChip('Reciclaje', false),
-                _buildCategoryChip('Educación', false),
-                _buildCategoryChip('Plantación', false),
+                _buildCategoryChip('todos', 'Todos'),
+                _buildCategoryChip('limpieza', 'Limpieza'),
+                _buildCategoryChip('reciclaje', 'Reciclaje'),
+                _buildCategoryChip('educacion', 'Educación'),
+                _buildCategoryChip('planteacion', 'Plantación'),
               ],
             ),
           ),
-          // Lista de eventos
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: const [
-                EcoEventCard(
-                  title: 'Limpieza de Playa Los Verdes',
-                  date: '14/04/2023',
-                  location: 'Playa Los Verdes, Viña del Mar',
-                  description: 'Únete a nuestra jornada de limpieza para mantener nuestras playas libres de plásticos y residuos.',
-                  participants: 24,
-                ),
-                SizedBox(height: 16),
-                EcoEventCard(
-                  title: 'Taller de Reciclaje Creativo',
-                  date: '21/04/2023',
-                  location: 'Parque Central, Santiago',
-                  description: 'Aprende a transformar residuos en objetos útiles y decorativos. Trae tus materiales reciclables.',
-                  participants: 15,
-                ),
-              ],
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _getFilteredActivities().isEmpty
+                    ? const Center(child: Text('No hay eventos disponibles'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _getFilteredActivities().length,
+                        itemBuilder: (context, index) {
+                          final activity = _getFilteredActivities()[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: EcoEventCard(
+                              title: activity.nombre,
+                              date: DateFormat('dd/MM/yyyy HH:mm')
+                                  .format(activity.fechaHora),
+                              location: activity.ubicacion ?? 'Sin ubicación',
+                              description: activity.descripcion ?? '',
+                              participants: activity.disponibilidadCupos ?? 0,
+                              imageUrl: activity.urlImage,
+                              materials: activity.materialesRequeridos,
+                              type: activity.tipoActividad ?? 'Presencial',
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryChip(String label, bool isSelected) {
+  Widget _buildCategoryChip(String value, String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: FilterChip(
         label: Text(label),
-        selected: isSelected,
-        onSelected: (bool selected) {},
+        selected: _selectedCategory == value,
+        onSelected: (bool selected) {
+          setState(() => _selectedCategory = value);
+        },
         backgroundColor: Colors.grey[200],
         selectedColor: Colors.green[100],
         labelStyle: TextStyle(
-          color: isSelected ? const Color(0xFF4CAF50) : Colors.grey[700],
+          color: _selectedCategory == value
+              ? const Color(0xFF4CAF50)
+              : Colors.grey[700],
         ),
       ),
     );
   }
 
-  static void _showCreateEventDialog(BuildContext context) {
+  void _showCreateEventDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Crear Nuevo Evento'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Título del Evento',
-                  hintText: 'Ej: Limpieza de Playa',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    labelText: 'Título del Evento',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor ingresa un título';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: () async {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      final TimeOfDay? time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (time != null) {
+                        setState(() {
+                          _selectedDate = DateTime(
+                            picked.year,
+                            picked.month,
+                            picked.day,
+                            time.hour,
+                            time.minute,
+                          );
+                        });
+                      }
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Fecha y Hora',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      _selectedDate == null
+                          ? 'Seleccionar fecha y hora'
+                          : DateFormat('dd/MM/yyyy HH:mm').format(_selectedDate!),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Fecha',
-                  hintText: 'dd/mm/yyyy',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _locationController,
+                  decoration: InputDecoration(
+                    labelText: 'Ubicación',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Ubicación',
-                  hintText: 'Ej: Parque Central, Santiago',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedActivityType,
+                  decoration: InputDecoration(
+                    labelText: 'Tipo de Actividad',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Presencial', child: Text('Presencial')),
+                    DropdownMenuItem(value: 'Virtual', child: Text('Virtual')),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _selectedActivityType = value!);
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _materialsController,
+                  decoration: InputDecoration(
+                    labelText: 'Materiales Requeridos',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Descripción',
-                  hintText: 'Describe los detalles del evento...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 16),
+                TextFormField(
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Cupos Disponibles',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    _availableSpots = int.tryParse(value);
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Descripción',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
@@ -152,7 +336,7 @@ class EventsScreen extends StatelessWidget {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: _createActivity,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF4CAF50),
             ),
