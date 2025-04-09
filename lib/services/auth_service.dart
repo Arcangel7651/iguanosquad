@@ -9,20 +9,20 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    // 1. Autenticar
+    // 1. Autenticar con Supabase Auth
     final authRes = await _supabase.auth.signInWithPassword(
       email: email,
       password: password,
     );
-    final session = authRes.session;
-    if (session == null) {
+    if (authRes.session == null) {
       throw Exception('Credenciales inválidas');
     }
 
-    // 2. Leer datos de la tabla `usuario`
+    // 2. Traer el usuario de la tabla (incluye la contraseña que guardaste)
     final resp = await _supabase
         .from('usuario')
-        .select()
+        .select(
+            'id,nombre,correo_electronico,telefono,ubicacion,historial_participacion,contraseña')
         .eq('correo_electronico', email)
         .single()
         .execute();
@@ -43,7 +43,7 @@ class AuthService {
     required String password,
     required String ubicacion,
   }) async {
-    // 1. Crear credenciales en Auth de Supabase (metadata con 'data')
+    // 1. Crear credenciales en Auth
     final res = await _supabase.auth.signUp(
       email: email,
       password: password,
@@ -57,13 +57,14 @@ class AuthService {
       throw Exception('Error al crear la cuenta: revisa tus credenciales');
     }
 
-    // 2. Insertar fila en la tabla `usuario` (id serial se genera solo)
+    // 2. Insertar fila en la tabla `usuario`, incluyendo la contraseña
     final insertRes = await _supabase
         .from('usuario')
         .insert({
           'nombre': nombre,
           'correo_electronico': email,
           'ubicacion': ubicacion,
+          'contraseña': password, // ← aquí
         })
         .select() // para que devuelva el registro insertado
         .single()

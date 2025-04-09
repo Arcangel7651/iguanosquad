@@ -99,24 +99,17 @@ class _EventsScreenState extends State<EventsScreen> {
 
     setState(() => _isUploadingImage = true);
     try {
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}${path.extension(_selectedImage!.path)}';
+      final String fileName =
+          '${DateTime.now().millisecondsSinceEpoch}${path.extension(_selectedImage!.path)}';
       final String storageFolder = 'actividades';
-      
-      final response = await _supabase
-          .storage
+
+      final response = await _supabase.storage
           .from(storageFolder)
           .upload(fileName, _selectedImage!);
 
-      if (response.error != null) {
-        throw response.error!;
-      }
-
       // Obtener la URL pública
-      final String imageUrl = _supabase
-          .storage
-          .from(storageFolder)
-          .getPublicUrl(fileName)
-          .data!;
+      final String imageUrl =
+          _supabase.storage.from(storageFolder).getPublicUrl(fileName);
 
       return imageUrl;
     } catch (e) {
@@ -175,7 +168,9 @@ class _EventsScreenState extends State<EventsScreen> {
       return _activities;
     }
     return _activities
-        .where((activity) => activity.tipoCategoria?.toLowerCase() == _selectedCategory.toLowerCase())
+        .where((activity) =>
+            activity.tipoCategoria?.toLowerCase() ==
+            _selectedCategory.toLowerCase())
         .toList();
   }
 
@@ -216,9 +211,8 @@ class _EventsScreenState extends State<EventsScreen> {
             child: Row(
               children: [
                 _buildCategoryChip(Categories.todos, 'Todos'),
-                ...Categories.values.map((category) => 
-                  _buildCategoryChip(category, category)
-                ),
+                ...Categories.values
+                    .map((category) => _buildCategoryChip(category, category)),
               ],
             ),
           ),
@@ -314,8 +308,10 @@ class _EventsScreenState extends State<EventsScreen> {
                         : const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_photo_alternate, size: 50, color: Colors.grey),
-                              Text('Agregar imagen', style: TextStyle(color: Colors.grey)),
+                              Icon(Icons.add_photo_alternate,
+                                  size: 50, color: Colors.grey),
+                              Text('Agregar imagen',
+                                  style: TextStyle(color: Colors.grey)),
                             ],
                           ),
                   ),
@@ -373,25 +369,28 @@ class _EventsScreenState extends State<EventsScreen> {
                     child: Text(
                       _selectedDate == null
                           ? 'Seleccionar fecha y hora'
-                          : DateFormat('dd/MM/yyyy HH:mm').format(_selectedDate!),
+                          : DateFormat('dd/MM/yyyy HH:mm')
+                              .format(_selectedDate!),
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedCategory == Categories.todos ? Categories.values.first : _selectedCategory,
+                  value: _selectedCategory == Categories.todos
+                      ? Categories.values.first
+                      : _selectedCategory,
                   decoration: InputDecoration(
                     labelText: 'Categoría',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  items: Categories.values.map((category) => 
-                    DropdownMenuItem(
-                      value: category,
-                      child: Text(category),
-                    )
-                  ).toList(),
+                  items: Categories.values
+                      .map((category) => DropdownMenuItem(
+                            value: category,
+                            child: Text(category),
+                          ))
+                      .toList(),
                   onChanged: (value) {
                     setState(() => _selectedCategory = value!);
                   },
@@ -416,7 +415,8 @@ class _EventsScreenState extends State<EventsScreen> {
                     ),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'Presencial', child: Text('Presencial')),
+                    DropdownMenuItem(
+                        value: 'Presencial', child: Text('Presencial')),
                     DropdownMenuItem(value: 'Virtual', child: Text('Virtual')),
                   ],
                   onChanged: (value) {
