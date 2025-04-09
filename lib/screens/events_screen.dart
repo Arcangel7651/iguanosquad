@@ -106,12 +106,12 @@ Future<void> _loadActivities() async {
   setState(() => _isUploadingImage = true);
   try {
     final String fileExt = path.extension(_selectedImage!.path);
-    final String fileName = '${DateTime.now().millisecondsSinceEpoch}$fileExt';
-    final String storageFolder = 'actividades';
+    final String fileName = 'activities/${DateTime.now().millisecondsSinceEpoch}$fileExt';
+    final String bucketName = 'markedplace';
 
     // Subir a Supabase Storage
     final response = await _supabase.storage
-        .from(storageFolder)
+        .from(bucketName)
         .upload(fileName, _selectedImage!);
 
     if (response != null) {
