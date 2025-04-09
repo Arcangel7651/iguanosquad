@@ -1,9 +1,9 @@
 // lib/widgets/product_card.dart
 import 'package:flutter/material.dart';
-import '../models/product.dart';
+import '../models/Articulo.dart';
 
 class ProductCard extends StatelessWidget {
-  final Product product;
+  final Articulo product;
   final VoidCallback? onView;
 
   const ProductCard({
@@ -43,7 +43,7 @@ class ProductCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  product.title,
+                  product.nombre,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -57,13 +57,13 @@ class ProductCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '\$${product.price.toStringAsFixed(2)}',
+                      '\$${product.precio?.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (product.isNew)
+                    if (product.estado != null)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -87,19 +87,7 @@ class ProductCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.comment_outlined, 
-                          size: 16, 
-                          color: Colors.grey
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${product.comments}',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
+                    Row(),
                     TextButton(
                       onPressed: onView,
                       style: TextButton.styleFrom(
