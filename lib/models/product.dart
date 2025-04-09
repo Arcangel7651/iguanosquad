@@ -1,4 +1,6 @@
 // lib/models/product.dart
+import 'dart:convert';
+
 class Product {
   final int id;
   final String nombre;
@@ -28,7 +30,7 @@ class Product {
       if (json['imgs'] is List) {
         imgsList = List<String>.from(json['imgs']);
       } else if (json['imgs'] is String) {
-        // Si por alguna razón viene como String (podría pasar si es un JSON string)
+        // Si viene como una cadena JSON
         try {
           var decoded = jsonDecode(json['imgs']);
           if (decoded is List) {
@@ -37,6 +39,12 @@ class Product {
         } catch (_) {
           imgsList = [json['imgs']];
         }
+      } else if (json['imgs'] is Map) {
+        // Si viene como un objeto JSON
+        imgsList = [];
+        (json['imgs'] as Map).forEach((key, value) {
+          imgsList!.add(value.toString());
+        });
       }
     }
 
@@ -50,5 +58,11 @@ class Product {
       imgs: imgsList,
       tipoCategoria: json['tipo_categoria'],
     );
+  }
+  
+  // Método de depuración para mostrar el contenido del objeto
+  @override
+  String toString() {
+    return 'Product(id: $id, nombre: $nombre, imgs: $imgs)';
   }
 }
