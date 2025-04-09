@@ -46,34 +46,34 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Future<void> _loadProducts() async {
-    setState(() => _isLoading = true);
-    try {
-      final response = await _supabase
-          .from('articulo')
-          .select()
-          .order('id', ascending: false)
-          .execute();
+  setState(() => _isLoading = true);
+  try {
+    // Usa select() sin execute() según la API más reciente de Supabase Flutter
+    final response = await _supabase
+        .from('articulo')
+        .select()
+        .order('id', ascending: false);
 
-      if (response.data != null) {
-        setState(() {
-          _products = (response.data as List)
-              .map((json) => Product.fromJson(json))
-              .toList();
-        });
-      }
-    } catch (e) {
-      debugPrint('Error cargando productos: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al cargar los productos')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    if (response != null) {
+      setState(() {
+        _products = (response as List)
+            .map((json) => Product.fromJson(json))
+            .toList();
+      });
+    }
+  } catch (e) {
+    debugPrint('Error cargando productos: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al cargar los productos')),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   Future<void> _pickImages() async {
     try {
@@ -93,71 +93,82 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Future<List<String>> _uploadImages() async {
-    List<String> uploadedUrls = [];
+  List<String> uploadedUrls = [];
 
-    for (var image in _selectedImages) {
-      try {
-        final String fileName =
-            '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}${image.path.split('.').last}';
-        final String storageFolder = 'articulos';
+  for (var image in _selectedImages) {
+    try {
+      final String fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${uploadedUrls.length}.${image.path.split('.').last}';
+      final String storageFolder = 'articulos';
 
-        final response =
-            await _supabase.storage.from(storageFolder).upload(fileName, image);
+      // Corregido: Forma correcta de subir a Supabase Storage
+      final response = await _supabase.storage
+          .from(storageFolder)
+          .upload(fileName, image);
 
+      if (response.isNotEmpty) {
+        // Obtener la URL pública del archivo subido
         final String imageUrl =
             _supabase.storage.from(storageFolder).getPublicUrl(fileName);
-
+        
         uploadedUrls.add(imageUrl);
-      } catch (e) {
-        debugPrint('Error subiendo imagen: $e');
+        debugPrint('Imagen subida exitosamente: $imageUrl');
       }
+    } catch (e) {
+      debugPrint('Error subiendo imagen: $e');
     }
+  }
+
+  return uploadedUrls;
+}
 
     return uploadedUrls;
   }
 
   Future<void> _createProduct() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() => _isUploadingImages = true);
-    List<String> imageUrls = [];
-
-    try {
-      if (_selectedImages.isNotEmpty) {
-        imageUrls = await _uploadImages();
-      }
-
-      await _supabase.from('articulo').insert({
-        'nombre': _titleController.text,
-        'descripcion': _descriptionController.text,
-        'estado': _selectedState,
-        'precio': double.parse(_priceController.text),
-        'ubicacion': _locationController.text,
-        'imgs': imageUrls,
-        'tipo_categoria': _selectedCategory == ProductCategories.todos
-            ? ProductCategories.values.first
-            : _selectedCategory,
-      }).execute();
-
-      if (mounted) {
-        Navigator.pop(context);
-        _loadProducts();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Producto publicado exitosamente')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al publicar el producto')),
-        );
-      }
-    } finally {
-      setState(() => _isUploadingImages = false);
-    }
+  if (!_formKey.currentState!.validate()) {
+    return;
   }
+
+  setState(() => _isUploadingImages = true);
+  List<String> imageUrls = [];
+
+  try {
+    if (_selectedImages.isNotEmpty) {
+      imageUrls = await _uploadImages();
+    }
+
+    // Corregido: Manejando imgs como JSON
+    await _supabase.from('articulo').insert({
+      'nombre': _titleController.text,
+      'descripcion': _descriptionController.text,
+      'estado': _selectedState,
+      'precio': double.parse(_priceController.text),
+      'ubicacion': _locationController.text,
+      'imgs': imageUrls, // Supabase automáticamente convertirá List<String> a jsonb
+      'tipo_categoria': _selectedCategory == ProductCategories.todos
+          ? ProductCategories.values.first
+          : _selectedCategory,
+    }).execute();
+
+    if (mounted) {
+      Navigator.pop(context);
+      _loadProducts();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Producto publicado exitosamente')),
+      );
+    }
+  } catch (e) {
+    debugPrint('Error al publicar el producto: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al publicar el producto')),
+      );
+    }
+  } finally {
+    setState(() => _isUploadingImages = false);
+  }
+}
 
   List<Product> _getFilteredProducts() {
     if (_selectedCategory == ProductCategories.todos) {
@@ -391,38 +402,90 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Selector de imágenes
-                InkWell(
-                  onTap: _pickImages,
-                  child: Container(
-                    height: 150,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey),
-                    ),
-                    child: _selectedImages.isEmpty
-                        ? const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add_photo_alternate,
-                                  size: 50, color: Colors.grey),
-                              Text('Agregar imágenes',
-                                  style: TextStyle(color: Colors.grey)),
-                            ],
-                          )
-                        : GridView.count(
-                            crossAxisCount: 3,
-                            mainAxisSpacing: 4,
-                            crossAxisSpacing: 4,
-                            padding: const EdgeInsets.all(4),
-                            children: _selectedImages
-                                .map((image) =>
-                                    Image.file(image, fit: BoxFit.cover))
-                                .toList(),
-                          ),
+                // Mejorar el selector de imágenes en el diálogo
+InkWell(
+  onTap: _pickImages,
+  child: Container(
+    height: 150,
+    width: double.infinity,
+    decoration: BoxDecoration(
+      color: Colors.grey[200],
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Colors.grey),
+    ),
+    child: _selectedImages.isEmpty
+        ? const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add_photo_alternate,
+                  size: 50, color: Colors.grey),
+              Text('Agregar imágenes',
+                  style: TextStyle(color: Colors.grey)),
+            ],
+          )
+        : Stack(
+            children: [
+              GridView.count(
+                crossAxisCount: 3,
+                mainAxisSpacing: 4,
+                crossAxisSpacing: 4,
+                padding: const EdgeInsets.all(4),
+                children: _selectedImages
+                    .map((image) => Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.file(
+                                image,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedImages.remove(image);
+                                  });
+                                },
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  padding: const EdgeInsets.all(4),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ))
+                    .toList(),
+              ),
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: ElevatedButton.icon(
+                  onPressed: _pickImages,
+                  icon: const Icon(Icons.add_photo_alternate, size: 16),
+                  label: const Text('Más fotos'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ),
+              ),
+            ],
+          ),
+  ),
+)
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _titleController,

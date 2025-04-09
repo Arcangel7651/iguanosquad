@@ -21,9 +21,23 @@ class Product {
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
-    List<String>? imagesList;
+    List<String>? imgsList;
+    
+    // Manejo del campo 'imgs' que es jsonb en la base de datos
     if (json['imgs'] != null) {
-      imagesList = List<String>.from(json['imgs'] as List);
+      if (json['imgs'] is List) {
+        imgsList = List<String>.from(json['imgs']);
+      } else if (json['imgs'] is String) {
+        // Si por alguna razón viene como String (podría pasar si es un JSON string)
+        try {
+          var decoded = jsonDecode(json['imgs']);
+          if (decoded is List) {
+            imgsList = List<String>.from(decoded);
+          }
+        } catch (_) {
+          imgsList = [json['imgs']];
+        }
+      }
     }
 
     return Product(
@@ -31,9 +45,9 @@ class Product {
       nombre: json['nombre'],
       descripcion: json['descripcion'],
       estado: json['estado'],
-      precio: json['precio'] != null ? (json['precio'] as num).toDouble() : null,
+      precio: json['precio'] != null ? double.parse(json['precio'].toString()) : null,
       ubicacion: json['ubicacion'],
-      imgs: imagesList,
+      imgs: imgsList,
       tipoCategoria: json['tipo_categoria'],
     );
   }
