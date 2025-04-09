@@ -14,7 +14,6 @@ class MarketplaceScreen extends StatefulWidget {
 }
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
-  
   final SupabaseClient _supabase = Supabase.instance.client;
   final ImagePicker _imagePicker = ImagePicker();
   List<Product> _products = [];
@@ -383,165 +382,234 @@ Future<List<String>> _uploadImages() async {
     );
   }
 
-  // Actualización del método _showPublishProductDialog
-void _showPublishProductDialog(BuildContext context) {
-  // Resetear valores
-  _titleController.clear();
-  _descriptionController.clear();
-  _priceController.clear();
-  _locationController.clear();
-  _selectedImages = []; // Limpiamos la lista de imágenes seleccionadas
-  _selectedState = ProductCategories.estados.first;
+  void _showPublishProductDialog(BuildContext context) {
+    // Resetear valores
+    _titleController.clear();
+    _descriptionController.clear();
+    _priceController.clear();
+    _locationController.clear();
+    _selectedImages.clear();
+    _selectedState = ProductCategories.estados.first;
 
-  showDialog(
-    context: context,
-    builder: (dialogContext) => StatefulBuilder( // Usamos StatefulBuilder para manejar el estado dentro del diálogo
-      builder: (context, setDialogState) {
-        return AlertDialog(
-          title: const Text('Publicar Artículo'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Selector de imágenes mejorado
-                  InkWell(
-                    onTap: () async {
-                      await _pickImages();
-                      // Actualizamos el estado del diálogo después de seleccionar imágenes
-                      setDialogState(() {});
-                    },
-                    child: Container(
-                      height: 150,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey),
-                      ),
-                      child: _selectedImages.isEmpty
-                          ? const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.add_photo_alternate,
-                                    size: 50, color: Colors.grey),
-                                Text('Agregar imágenes',
-                                    style: TextStyle(color: Colors.grey)),
-                              ],
-                            )
-                          : Stack(
-                              children: [
-                                GridView.count(
-                                  crossAxisCount: 3,
-                                  mainAxisSpacing: 4,
-                                  crossAxisSpacing: 4,
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Publicar Artículo'),
+        content: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Selector de imágenes
+                // Mejorar el selector de imágenes en el diálogo
+InkWell(
+  onTap: _pickImages,
+  child: Container(
+    height: 150,
+    width: double.infinity,
+    decoration: BoxDecoration(
+      color: Colors.grey[200],
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Colors.grey),
+    ),
+    child: _selectedImages.isEmpty
+        ? const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add_photo_alternate,
+                  size: 50, color: Colors.grey),
+              Text('Agregar imágenes',
+                  style: TextStyle(color: Colors.grey)),
+            ],
+          )
+        : Stack(
+            children: [
+              GridView.count(
+                crossAxisCount: 3,
+                mainAxisSpacing: 4,
+                crossAxisSpacing: 4,
+                padding: const EdgeInsets.all(4),
+                children: _selectedImages
+                    .map((image) => Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.file(
+                                image,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedImages.remove(image);
+                                  });
+                                },
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
                                   padding: const EdgeInsets.all(4),
-                                  children: _selectedImages
-                                      .map((image) => Stack(
-                                            fit: StackFit.expand,
-                                            children: [
-                                              ClipRRect(
-                                                borderRadius: BorderRadius.circular(4),
-                                                child: Image.file(
-                                                  image,
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              ),
-                                              Positioned(
-                                                top: 0,
-                                                right: 0,
-                                                child: GestureDetector(
-                                                  onTap: () {
-                                                    setDialogState(() {
-                                                      _selectedImages.remove(image);
-                                                    });
-                                                  },
-                                                  child: Container(
-                                                    decoration: const BoxDecoration(
-                                                      color: Colors.red,
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                    padding: const EdgeInsets.all(4),
-                                                    child: const Icon(
-                                                      Icons.close,
-                                                      size: 16,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ))
-                                      .toList(),
-                                ),
-                                Positioned(
-                                  bottom: 8,
-                                  right: 8,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      await _pickImages();
-                                      setDialogState(() {});
-                                    },
-                                    icon: const Icon(Icons.add_photo_alternate, size: 16),
-                                    label: const Text('Más fotos'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF4CAF50),
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      visualDensity: VisualDensity.compact,
-                                    ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: Colors.white,
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
-                    ),
-                  ),
-                  // Resto del formulario...
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _titleController,
-                    decoration: InputDecoration(
-                      labelText: 'Título del Artículo',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingresa un título';
-                      }
-                      return null;
-                    },
-                  ),
-                  // ... resto de los campos del formulario
-                ],
+                          ],
+                        ))
+                    .toList(),
               ),
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: ElevatedButton.icon(
+                  onPressed: _pickImages,
+                  icon: const Icon(Icons.add_photo_alternate, size: 16),
+                  label: const Text('Más fotos'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
+            ],
+          ),
+  ),
+),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    labelText: 'Título del Artículo',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor ingresa un título';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory == ProductCategories.todos
+                      ? ProductCategories.values.first
+                      : _selectedCategory,
+                  decoration: InputDecoration(
+                    labelText: 'Categoría',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  items: ProductCategories.values
+                      .map((category) => DropdownMenuItem(
+                            value: category,
+                            child: Text(category),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedCategory = value!);
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedState,
+                  decoration: InputDecoration(
+                    labelText: 'Estado',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  items: ProductCategories.estados
+                      .map((estado) => DropdownMenuItem(
+                            value: estado,
+                            child: Text(estado),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedState = value!);
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _priceController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Precio (\$)',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor ingresa un precio';
+                    }
+                    if (double.tryParse(value) == null) {
+                      return 'Por favor ingresa un precio válido';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _locationController,
+                  decoration: InputDecoration(
+                    labelText: 'Ubicación',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Descripción',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: _isUploadingImages ? null : _createProduct,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4CAF50),
             ),
-            ElevatedButton(
-              onPressed: _isUploadingImages ? null : _createProduct,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
-              ),
-              child: _isUploadingImages
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text('Publicar Artículo'),
-            ),
-          ],
-        );
-      },
-    ),
-  );
+            child: _isUploadingImages
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text('Publicar Artículo'),
+          ),
+        ],
+      ),
+    );
+  }
 }
