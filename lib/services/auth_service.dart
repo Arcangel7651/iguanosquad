@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:iguanosquad/atributos/atributo_usuario.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/usuario.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
+
+  // Verifica si el usuario está autenticado
+  Future<bool> isUserAuthenticated() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id');
+    return userId != null; // Si tiene un user_id guardado, está autenticado
+  }
 
   /// Inicia sesión con Supabase Auth y luego obtiene la fila de `usuario`
   Future<Usuario> login({
@@ -18,8 +27,16 @@ class AuthService {
 
     final user = authRes.user;
     if (user == null) {
+      print('No se obtuvo sesión de usuario');
       throw Exception('No se obtuvo sesión de usuario');
     }
+
+    // Guardar ID del usuario localmente
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', user.id);
+
+// Guardar en variable estática
+    UserData.userId = user.id;
 
     // 2. Traer datos extra del usuario (sin contraseña)
     final resp = await _supabase
@@ -27,13 +44,16 @@ class AuthService {
         .select(
             'id, nombre, correo_electronico, telefono, ubicacion, historial_participacion')
         .eq('id', user.id)
-        .maybeSingle(); // no lanza excepción si no existe
+        .maybeSingle();
 
-    if (resp.error != null) {
+    if (resp == null) {
+      print('Error al cargar perfil: ${resp.error!.message}');
       throw Exception('Error al cargar perfil: ${resp.error!.message}');
     }
-    final data = resp.data as Map<String, dynamic>?;
+
+    final data = resp as Map<String, dynamic>;
     if (data == null) {
+      print('Usuario no encontrado en la tabla “usuario”');
       throw Exception('Usuario no encontrado en la tabla “usuario”');
     }
 
