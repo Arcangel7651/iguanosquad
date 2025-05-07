@@ -55,4 +55,20 @@ class ActivityService {
 
     return Activity.fromJson(res.data as Map<String, dynamic>);
   }
+
+  Future<List<Map<String, dynamic>>> obtenerActividadesPorUsuario(
+      String userId) async {
+    final supabase = Supabase.instance.client;
+
+    final response = await supabase
+        .from('actividad_conservacion')
+        .select('nombre, fecha_hora, ubicacion, descripcion')
+        .eq('organizador', userId);
+
+    if (response.isEmpty) {
+      return []; // No hay actividades para ese usuario
+    }
+
+    return response;
+  }
 }

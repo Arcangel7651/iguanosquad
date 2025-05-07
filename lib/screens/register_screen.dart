@@ -21,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _locationController = TextEditingController();
+  final _phoneController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -30,6 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _locationController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -40,11 +42,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
     try {
       final nuevoUsuario = await _authService.register(
-        nombre: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        ubicacion: _locationController.text.trim(),
-      );
+          nombre: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          ubicacion: _locationController.text.trim(),
+          telefono: _phoneController.text.trim());
 
       // Registro exitoso: navega a Home y pasa el usuario (opcional)
       Navigator.of(context).pushNamedAndRemoveUntil(
@@ -179,6 +181,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   validator: (v) => (v == null || v.isEmpty)
                       ? 'Por favor ingresa tu ubicación'
                       : null,
+                ),
+                const SizedBox(height: 20),
+
+                // Teléfono
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: 'Número de Teléfono',
+                    prefixIcon: const Icon(Icons.phone),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty)
+                      return 'Por favor ingresa tu número de teléfono';
+                    if (!RegExp(r'^\d{10}$').hasMatch(v))
+                      return 'Debe ser un número de 10 dígitos';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 30),
 

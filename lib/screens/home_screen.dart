@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'events_screen.dart';
 import 'marketplace_screen.dart';
 import 'profile_screen.dart';
+import 'my_publication_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -17,9 +18,10 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = [
     const EventsScreen(),
     const MarketplaceScreen(),
-    const Center(child: Text('Preguntas')), // Placeholder para la sección de preguntas
+    const Center(
+        child: Text('Preguntas')), // Placeholder para la sección de preguntas
     const ProfileScreen(),
-    const Center(child: Text('Mis Publicaciones')), // Placeholder para mis publicaciones
+    const MyPublicationsScreen(), // Placeholder para mis publicaciones
   ];
 
   @override

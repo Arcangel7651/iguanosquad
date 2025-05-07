@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/usuario.dart';
 
@@ -50,27 +51,44 @@ class AuthService {
     required String email,
     required String password,
     required String ubicacion,
+    required String telefono,
   }) async {
-    // 1. Registrar usuario con email y password
-    final res = await _supabase.auth.signUp(
-      email: email,
-      password: password,
-    );
+    try {
+      // 1. Registrar usuario con email y password
+      final res = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+      );
 
-    final user = res.user!;
+      if (res.user == null) {
+        throw Exception(
+            'Error al registrar usuario: ${res.session?.accessToken ?? 'sin sesión activa'}');
+      }
 
-    // 2. Insertar datos adicionales en tu tabla `usuario`
-    final insertRes = await _supabase
-        .from('usuario')
-        .insert({
-          'id': user.id,
-          'nombre': nombre,
-          'correo_electronico': email,
-          'ubicacion': ubicacion,
-        })
-        .select()
-        .single();
+      final user = res.user!;
 
-    return Usuario.fromJson(insertRes as Map<String, dynamic>);
+      debugPrint('Usuario registrado con ID: ${user.id}');
+
+      // 2. Insertar datos adicionales en tu tabla `usuario`
+      final insertRes = await _supabase
+          .from('usuario')
+          .insert({
+            'id': user.id,
+            'nombre': nombre,
+            'correo_electronico': email,
+            'ubicacion': ubicacion,
+            'telefono': telefono,
+          })
+          .select()
+          .single();
+
+      print('Datos insertados correctamente en tabla `usuario`: $insertRes');
+
+      return Usuario.fromJson(insertRes as Map<String, dynamic>);
+    } catch (error, stackTrace) {
+      print('Error durante el registro: $error');
+      print('Stack trace: $stackTrace');
+      throw Exception('Fallo en el proceso de registro: $error');
+    }
   }
 }
