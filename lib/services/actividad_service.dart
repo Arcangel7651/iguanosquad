@@ -60,15 +60,56 @@ class ActivityService {
       String userId) async {
     final supabase = Supabase.instance.client;
 
+    // Ejecuta la consulta y obtén el PostgrestResponse
     final response = await supabase
         .from('actividad_conservacion')
         .select('nombre, fecha_hora, ubicacion, descripcion')
-        .eq('organizador', userId);
+        .eq('organizador', userId)
+        .execute(); // ← ¡IMPORTANTE!
 
-    if (response.isEmpty) {
-      return []; // No hay actividades para ese usuario
+    // Extrae la data, que ya es List<dynamic>
+    final data = response.data as List<dynamic>;
+
+    // Si no hay elementos, regresa lista vacía
+    if (data.isEmpty) {
+      return [];
     }
 
-    return response;
+    // Asegúrate de castear cada elemento a Map<String, dynamic>
+    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<List<Activity>> obtenerActividades({
+    String? nombre,
+    DateTime? fechaDesde,
+    required String? userId,
+  }) async {
+    // Eliminamos la declaración genérica <Map<String, dynamic>>
+    var query = _supabase
+        .from('actividad_conservacion')
+        .select('*') // ← Esta es la corrección clave
+        .eq('organizador', userId);
+
+    if (nombre != null && nombre.isNotEmpty) {
+      query = query.ilike('nombre', '%$nombre%');
+    }
+
+    if (fechaDesde != null) {
+      query = query.filter(
+        'fecha_hora',
+        'gte',
+        fechaDesde.toIso8601String(),
+      );
+    }
+
+    final finalQuery = query.order('fecha_hora', ascending: true);
+
+    final response = await finalQuery.execute();
+
+    final data = response.data as List<dynamic>;
+
+    return data
+        .map((json) => Activity.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 }

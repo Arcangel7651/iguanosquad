@@ -152,8 +152,18 @@ class _EventsScreenState extends State<EventsScreen> {
         debugPrint('URL de imagen obtenida: $imageUrl');
       }
 
-      // Creando el objeto de datos
-      final Map<String, dynamic> activityData = {
+      // Obtener el ID del usuario actual
+      final String? organizerId = Supabase.instance.client.auth.currentUser?.id;
+      if (organizerId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Debes iniciar sesión para crear una actividad')),
+        );
+        return;
+      }
+
+      // Construir el mapa de datos ya con el organizador
+      final activityData = <String, dynamic>{
         'nombre': _titleController.text,
         'descripcion': _descriptionController.text,
         'ubicacion': _locationController.text,
@@ -162,16 +172,15 @@ class _EventsScreenState extends State<EventsScreen> {
         'disponibilidad_cupos': _availableSpots,
         'materiales_requeridos': _materialsController.text,
         'tipo_categoria': _selectedCategory.toLowerCase(),
+        'organizador': organizerId, // ← Aquí va el UUID
       };
 
-      // Solo añadir url_image si hay imagen
       if (imageUrl != null && imageUrl.isNotEmpty) {
         activityData['url_image'] = imageUrl;
       }
 
       debugPrint('Datos a insertar: $activityData');
 
-      // Insertar sin execute()
       final response =
           await _supabase.from('actividad_conservacion').insert(activityData);
 
@@ -181,7 +190,7 @@ class _EventsScreenState extends State<EventsScreen> {
         Navigator.pop(context);
         _loadActivities();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Actividad creada exitosamente')),
+          const SnackBar(content: Text('Actividad creada exitosamente 🎉')),
         );
       }
     } catch (e) {

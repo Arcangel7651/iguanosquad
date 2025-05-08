@@ -32,6 +32,7 @@ class EventCard extends StatelessWidget {
         '${date.day} de ${_spanishMonth(date.month)}, ${date.year}';
 
     return Card(
+      color: Color.fromARGB(255, 255, 255, 255),
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
@@ -56,20 +57,23 @@ class EventCard extends StatelessWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.edit),
-                      onPressed: onEdit ??
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const EditEventScreen(),
-                              ),
-                            );
-                          },
+                      onPressed: () {
+                        print("Precionaste el boton de editar");
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditEventScreen(
+                              nombre: title,
+                              fechaDesde: date,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    IconButton(
+                    /*IconButton(
                       icon: const Icon(Icons.delete_outline),
                       onPressed: onDelete,
-                    ),
+                    ),*/
                   ],
                 ),
               ],
