@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:iguanosquad/models/activity.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -111,5 +112,37 @@ class ActivityService {
     return data
         .map((json) => Activity.fromJson(json as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<bool> actualizarActividad({
+    required int id,
+    required String nombre,
+    required DateTime fechaHora,
+    required String ubicacion,
+    required String descripcion,
+    required String tipoCategoria,
+    required int cupos,
+    required String materialesRequeridos,
+    required String tipoActividad,
+  }) async {
+    final response = await _supabase
+        .from('actividad_conservacion')
+        .update({
+          'nombre': nombre,
+          'fecha_hora': fechaHora.toIso8601String(),
+          'ubicacion': ubicacion,
+          'descripcion': descripcion,
+          'tipo_categoria': tipoCategoria,
+          'disponibilidad_cupos': cupos,
+          'materiales_requeridos': materialesRequeridos,
+          'tipo_actividad': tipoActividad,
+        })
+        .eq('id', id)
+        .select()
+        .single()
+        .execute();
+
+    // Si data es no nulo, damos por exitosa la actualización
+    return response.data != null;
   }
 }
