@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/Articulo.dart';
+import '../models/product.dart';
 
 class ArticleCard extends StatelessWidget {
-  final Articulo article;
+  final Product article;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 

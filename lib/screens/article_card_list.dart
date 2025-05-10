@@ -1,114 +1,70 @@
 // lib/widgets/article_card_list.dart
 
 import 'package:flutter/material.dart';
-import '../screens/edit_article_screen.dart'; // ajusta el path si es necesario
+import 'package:iguanosquad/services/articulo.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/product.dart';
+import '../widgets/article_card.dart';
+import '../screens/edit_article_screen.dart';
 
-class ArticleCardList extends StatelessWidget {
-  const ArticleCardList({super.key});
+class ArticleCardList extends StatefulWidget {
+  const ArticleCardList({Key? key}) : super(key: key);
+
+  @override
+  _ArticleCardListState createState() => _ArticleCardListState();
+}
+
+class _ArticleCardListState extends State<ArticleCardList> {
+  late final ArticuloService _service;
+  late Future<List<Product>> _futureProducts;
+  late final String _userId;
+
+  @override
+  void initState() {
+    super.initState();
+    _service = ArticuloService();
+    _userId = Supabase.instance.client.auth.currentUser!.id;
+    _futureProducts = _service.getProductsByUser(_userId);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Botella Reutilizable',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const EditArticleScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () {},
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.attach_money,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '12.99',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.category,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Hogar',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Botella de acero inoxidable, libre de BPA. Mantiene bebidas frías por 24h y calientes por 12h.',
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+    return FutureBuilder<List<Product>>(
+      future: _futureProducts,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: \${snapshot.error}'));
+        }
+        final articles = snapshot.data!;
+        if (articles.isEmpty) {
+          return const Center(child: Text('No tienes artículos aún'));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: articles.length,
+          itemBuilder: (context, index) {
+            final article = articles[index];
+            return ArticleCard(
+              article: article,
+              onEdit: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EditArticleScreen(),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[100],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'Nuevo',
-                    style: TextStyle(
-                      color: Colors.blue[800],
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+                ).then((_) {
+                  setState(() {
+                    _futureProducts = _service.getProductsByUser(_userId);
+                  });
+                });
+              },
+            );
+          },
+        );
+      },
     );
   }
 }
