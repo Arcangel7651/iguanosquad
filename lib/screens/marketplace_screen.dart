@@ -139,6 +139,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         debugPrint('URLs de imágenes subidas: $imageUrls');
       }
 
+      final String? userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Debes iniciar sesión para crear una actividad')),
+        );
+        return;
+      }
       // Verificamos que tengamos las URLs antes de insertar
       final response = await _supabase.from('articulo').insert({
         'nombre': _titleController.text,
@@ -150,6 +158,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         'tipo_categoria': _selectedCategory == ProductCategories.todos
             ? ProductCategories.values.first
             : _selectedCategory,
+        'id_usuario': userId,
       });
 
       debugPrint('Respuesta de inserción: $response');

@@ -6,6 +6,8 @@ class Articulo {
   final double? precio;
   final String? ubicacion;
   final List<String>? imgs;
+  final String? tipoCategoria;
+  final int? idUsuario;
 
   Articulo({
     required this.id,
@@ -15,17 +17,23 @@ class Articulo {
     this.precio,
     this.ubicacion,
     this.imgs,
+    this.tipoCategoria,
+    this.idUsuario,
   });
 
   factory Articulo.fromJson(Map<String, dynamic> json) {
     return Articulo(
-      id: json['id'],
-      nombre: json['nombre'],
-      descripcion: json['descripcion'],
-      estado: json['estado'],
-      precio: json['precio']?.toDouble(),
-      ubicacion: json['ubicacion'],
-      imgs: json['imgs'] != null ? List<String>.from(json['imgs']) : null,
+      id: json['id'] as int,
+      nombre: json['nombre'] as String,
+      descripcion: json['descripcion'] as String?,
+      estado: json['estado'] as String?,
+      precio:
+          (json['precio'] != null) ? (json['precio'] as num).toDouble() : null,
+      ubicacion: json['ubicacion'] as String?,
+      imgs:
+          json['imgs'] != null ? List<String>.from(json['imgs'] as List) : null,
+      tipoCategoria: json['tipo_categoria'] as String?,
+      idUsuario: json['id_usuario'] as int?,
     );
   }
 
@@ -37,6 +45,8 @@ class Articulo {
       'precio': precio,
       'ubicacion': ubicacion,
       'imgs': imgs,
+      'tipo_categoria': tipoCategoria,
+      'id_usuario': idUsuario,
     };
   }
 }
