@@ -7,7 +7,7 @@ class Articulo {
   final String? ubicacion;
   final List<String>? imgs;
   final String? tipoCategoria;
-  final int? idUsuario;
+  final String? idUsuario;
 
   Articulo({
     required this.id,
@@ -33,7 +33,7 @@ class Articulo {
       imgs:
           json['imgs'] != null ? List<String>.from(json['imgs'] as List) : null,
       tipoCategoria: json['tipo_categoria'] as String?,
-      idUsuario: json['id_usuario'] as int?,
+      idUsuario: json['id_usuario'] as String?,
     );
   }
 

@@ -27,6 +27,20 @@ class _ArticleCardListState extends State<ArticleCardList> {
     _futureProducts = _service.getProductsByUser(_userId);
   }
 
+  bool _isFirstBuild = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!_isFirstBuild) {
+      setState(() {
+        _futureProducts = _service.getProductsByUser(_userId);
+      });
+    }
+    _isFirstBuild = false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Product>>(
@@ -53,7 +67,9 @@ class _ArticleCardListState extends State<ArticleCardList> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => EditArticleScreen(),
+                    builder: (_) => EditArticleScreen(
+                      articulo: article,
+                    ),
                   ),
                 ).then((_) {
                   setState(() {
