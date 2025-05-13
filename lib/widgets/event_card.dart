@@ -1,6 +1,7 @@
 // lib/widgets/event_card.dart
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as path; // si lo necesitas más adelante
 import '../screens/edit_event_screen.dart';
 
 class EventCard extends StatelessWidget {
@@ -10,6 +11,7 @@ class EventCard extends StatelessWidget {
   final String description;
   final int participants;
   final bool isActive;
+  final String imageURL;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
@@ -23,42 +25,72 @@ class EventCard extends StatelessWidget {
     this.isActive = true,
     this.onEdit,
     this.onDelete,
+    required this.imageURL,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Formatear fecha a "22 de abril, 2023"
     final formattedDate =
         '${date.day} de ${_spanishMonth(date.month)}, ${date.year}';
 
     return Card(
-      color: Color.fromARGB(255, 255, 255, 255),
+      color: Colors.white,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Título + botones
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+      clipBehavior:
+          Clip.hardEdge, // Para que el ClipRRect de la imagen funcione bien
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ───── Imagen ─────
+          if (imageURL.isNotEmpty)
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(8)),
+              child: Image.network(
+                imageURL,
+                height: 160,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                loadingBuilder: (ctx, child, progress) => progress == null
+                    ? child
+                    : Container(
+                        height: 160,
+                        alignment: Alignment.center,
+                        child: const CircularProgressIndicator(),
+                      ),
+                errorBuilder: (_, __, ___) => Container(
+                  height: 160,
+                  color: Colors.grey[300],
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.broken_image, size: 40),
                 ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ───── Título + botones ─────
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.edit),
                       onPressed: () {
-                        print("Precionaste el boton de editar");
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -70,77 +102,76 @@ class EventCard extends StatelessWidget {
                         );
                       },
                     ),
-                    /*IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: onDelete,
-                    ),*/
+                    // si quieres onDelete:
+                    // IconButton(icon: Icon(Icons.delete_outline), onPressed: onDelete),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // ───── Fecha ─────
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today,
+                        size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(formattedDate,
+                        style: TextStyle(color: Colors.grey[600])),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                // ───── Ubicación ─────
+                Row(
+                  children: [
+                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(location,
+                          style: TextStyle(color: Colors.grey[600]),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // ───── Descripción ─────
+                Text(
+                  description,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 16),
+                // ───── Participantes + estado ─────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.people, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text('$participants participantes',
+                            style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isActive ? Colors.green[100] : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        isActive ? 'Activo' : 'Inactivo',
+                        style: TextStyle(
+                          color:
+                              isActive ? Colors.green[800] : Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ],
             ),
-
-            const SizedBox(height: 8),
-
-            // Fecha
-            Row(children: [
-              Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-              const SizedBox(width: 4),
-              Text(
-                formattedDate,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ]),
-
-            const SizedBox(height: 4),
-
-            // Ubicación
-            Row(children: [
-              Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-              const SizedBox(width: 4),
-              Text(
-                location,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ]),
-
-            const SizedBox(height: 16),
-
-            // Descripción
-            Text(description),
-
-            const SizedBox(height: 16),
-
-            // Participantes + estado
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(children: [
-                  Icon(Icons.people, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$participants participantes',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ]),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isActive ? Colors.green[100] : Colors.grey[200],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    isActive ? 'Activo' : 'Inactivo',
-                    style: TextStyle(
-                      color: isActive ? Colors.green[800] : Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

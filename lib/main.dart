@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'config/routes.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  print("iniciando.....");
   await Supabase.initialize(
     url: 'https://eqpfcemfmfoupwoouksi.supabase.co',
     anonKey:
@@ -22,6 +23,7 @@ class EcoXApp extends StatelessWidget {
     return MaterialApp(
       title: 'EcoX',
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [routeObserver],
       theme: ThemeData(
         primaryColor: const Color(0xFF4CAF50),
         colorScheme: ColorScheme.fromSeed(

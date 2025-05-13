@@ -10,6 +10,7 @@ class EcoEventCard extends StatelessWidget {
   final String? imageUrl;
   final String? materials;
   final String type;
+  final VoidCallback? onParticipate;
 
   const EcoEventCard({
     Key? key,
@@ -21,6 +22,7 @@ class EcoEventCard extends StatelessWidget {
     this.imageUrl,
     this.materials,
     required this.type,
+    this.onParticipate,
   }) : super(key: key);
 
   @override
@@ -35,17 +37,27 @@ class EcoEventCard extends StatelessWidget {
         children: [
           if (imageUrl != null)
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
               child: Image.network(
                 imageUrl!,
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 200,
+                    alignment: Alignment.center,
+                    child: const CircularProgressIndicator(),
+                  );
+                },
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     height: 200,
                     color: Colors.grey[200],
-                    child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                    child:
+                        const Icon(Icons.image, size: 50, color: Colors.grey),
                   );
                 },
               ),
@@ -55,6 +67,7 @@ class EcoEventCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                /// Título y tipo
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -66,13 +79,14 @@ class EcoEventCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF4CAF50),
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.green[50],
                         borderRadius: BorderRadius.circular(4),
@@ -87,15 +101,22 @@ class EcoEventCard extends StatelessWidget {
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 8),
+
+                /// Fecha
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                    const Icon(Icons.calendar_today,
+                        size: 16, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(date, style: const TextStyle(color: Colors.grey)),
                   ],
                 ),
+
                 const SizedBox(height: 4),
+
+                /// Ubicación
                 Row(
                   children: [
                     const Icon(Icons.location_on, size: 16, color: Colors.grey),
@@ -108,11 +129,14 @@ class EcoEventCard extends StatelessWidget {
                     ),
                   ],
                 ),
+
+                /// Materiales (opcional)
                 if (materials != null) ...[
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.inventory_2, size: 16, color: Colors.grey),
+                      const Icon(Icons.inventory_2,
+                          size: 16, color: Colors.grey),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -123,28 +147,43 @@ class EcoEventCard extends StatelessWidget {
                     ],
                   ),
                 ],
+
                 const SizedBox(height: 12),
-                Text(description),
+
+                /// Descripción
+                Text(
+                  description,
+                  style: const TextStyle(fontSize: 14),
+                ),
+
                 const SizedBox(height: 12),
+
+                /// Participantes y botón
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.people, size: 16, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text('$participants cupos disponibles'),
-                      ],
-                    ),
-                    ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.people,
+                              size: 16, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text('$participants cupos'),
+                        ],
                       ),
-                      child: const Text('Participar'),
+                    ),
+                    Tooltip(
+                      message: 'Registrarse al evento',
+                      child: ElevatedButton(
+                        onPressed: onParticipate ?? () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Participar'),
+                      ),
                     ),
                   ],
                 ),
