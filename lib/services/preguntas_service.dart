@@ -21,17 +21,38 @@ class PreguntasService {
 
   Future<List<Pregunta>> obtenerTodasLasPreguntas() async {
     try {
-      final response = await _supabase.from('preguntas').select('''
-        id_pregunta,
-        pregunta,
-        fecha,
-        id_usuario,
-        usuario(nombre),
-        respuestas(id_respuesta)
-      ''').order('fecha', ascending: false);
+      final dynamic response = await _supabase.from('preguntas').select('''
+      id_pregunta,
+      pregunta,
+      fecha,
+      id_usuario,
+      usuario(nombre)
+    ''').order('fecha', ascending: false);
 
-      final data = response as List<dynamic>;
-      return data.map((json) => Pregunta.fromJson(json)).toList();
+      print("Respuesta obtenida: $response");
+
+      // Verificar si la respuesta es una lista
+      if (response is List) {
+        List<Pregunta> preguntas = [];
+
+        for (final item in response) {
+          if (item is Map<String, dynamic>) {
+            try {
+              preguntas.add(Pregunta.fromJson(item));
+            } catch (e) {
+              print("Error parseando item: $item");
+              rethrow;
+            }
+          } else {
+            print("Item inválido (no es Map<String, dynamic>): $item");
+          }
+        }
+
+        return preguntas;
+      } else {
+        throw Exception(
+            'Se esperaba una lista de preguntas, pero se recibió: ${response.runtimeType}');
+      }
     } catch (e) {
       throw Exception('Error al obtener preguntas: $e');
     }
