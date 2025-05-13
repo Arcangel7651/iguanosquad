@@ -4,6 +4,7 @@ import 'package:iguanosquad/widgets/question_card.dart';
 import 'package:iguanosquad/widgets/new_question_dialog.dart';
 import 'package:iguanosquad/models/Preguntas.dart';
 import 'package:iguanosquad/services/preguntas_service.dart';
+import 'dart:async'; // Importar para usar Timer
 
 class ForumScreen extends StatefulWidget {
   const ForumScreen({super.key});
@@ -17,20 +18,23 @@ class _ForumScreenState extends State<ForumScreen> {
   List<Pregunta> _questions = [];
   bool _isLoading = true;
   String? _errorMessage;
+  Timer? _timer; // Agregar el Timer
 
   @override
   void initState() {
     super.initState();
     _loadAllQuestions();
+    _startAutoRefresh(); // Llamar a la función que configura el Timer
   }
 
+  // Función que carga las preguntas
   Future<void> _loadAllQuestions() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     try {
-      final preguntas = await _service.obtenerTodasLasPreguntas();
+      final preguntas = await _service.obtenerResumenPreguntas();
       setState(() => _questions = preguntas);
     } catch (e) {
       setState(() => _errorMessage = 'Error cargando preguntas: $e');
@@ -39,10 +43,22 @@ class _ForumScreenState extends State<ForumScreen> {
     }
   }
 
+  // Función que inicia el Timer para recargar los datos automáticamente
+  void _startAutoRefresh() {
+    _timer = Timer.periodic(Duration(seconds: 30), (timer) async {
+      await _loadAllQuestions(); // Actualizar las preguntas cada 30 segundos
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel(); // Cancelar el Timer cuando se destruya el widget
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ya no ponemos appBar aquí...
       body: RefreshIndicator(
         onRefresh: _loadAllQuestions,
         child: CustomScrollView(
@@ -91,7 +107,10 @@ class _ForumScreenState extends State<ForumScreen> {
                               question: _questions[i],
                             ),
                           ),
-                        );
+                        ).then((_) async {
+                          // Después de que el usuario regrese de la pantalla de respuestas, recargamos las preguntas.
+                          await _loadAllQuestions();
+                        });
                       },
                       child: QuestionCard(question: pregunta),
                     );

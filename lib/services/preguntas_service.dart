@@ -67,4 +67,33 @@ class PreguntasService {
       'id_usuario': user.id,
     });
   }
+
+  Future<List<Pregunta>> obtenerResumenPreguntas() async {
+    try {
+      final dynamic response = await _supabase
+          .from('vista_preguntas_con_total')
+          .select()
+          .order('fecha', ascending: false);
+
+      print("Respuesta desde la vista: $response");
+
+      if (response is List) {
+        return response.map((item) {
+          return Pregunta(
+            idPregunta: item['id_pregunta'] as int,
+            pregunta: item['pregunta'] as String,
+            fecha: DateTime.parse(item['fecha'] as String),
+            idUsuario: item['id_usuario'] as String?,
+            nombreUsuario: item['nombre_usuario'] as String?, // importante
+            totalRespuestas: item['total_respuestas'] as int,
+          );
+        }).toList();
+      } else {
+        throw Exception('La vista no devolvió una lista');
+      }
+    } catch (e) {
+      print("Error en obtenerResumenPreguntas: $e");
+      throw Exception('Error al obtener preguntas desde la vista: $e');
+    }
+  }
 }
