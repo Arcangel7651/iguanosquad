@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:iguanosquad/models/activity.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -144,5 +146,58 @@ class ActivityService {
 
     // Si data es no nulo, damos por exitosa la actualización
     return response.data != null;
+  }
+
+  Future<bool> updateImageUrlInDatabase(
+      int actividadId, String imageUrl) async {
+    final response = await Supabase.instance.client
+        .from('actividad_conservacion')
+        .update({'url_image': imageUrl})
+        .eq('id', actividadId)
+        .execute();
+    if (response != null) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  Future<bool> deleteImage(String imageUrl) async {
+    if (imageUrl == '') {
+      return false;
+    }
+    try {
+      // 1. Extraer la ruta dentro del bucket desde la URL pública.
+
+      final uri = Uri.parse(imageUrl);
+
+      final segments = uri.pathSegments;
+      final publicIndex = segments.indexOf('public');
+      if (publicIndex == -1 || publicIndex + 1 >= segments.length) {
+        debugPrint('URL de imagen inválida: no contiene "public/".');
+        return false;
+      }
+      final filePath = segments.sublist(publicIndex + 1).join('/');
+
+      // 2. Llamar al remove de Supabase Storage
+      final bucketName =
+          segments[publicIndex + 1]; // primer segmento tras 'public'
+      final pathInBucket = segments.sublist(publicIndex + 2).join('/');
+
+      final res = await Supabase.instance.client.storage
+          .from(bucketName)
+          .remove([pathInBucket]);
+
+      if (res != null) {
+        debugPrint('Error borrando imagen: ${res}');
+        return false;
+      }
+
+      debugPrint('Imagen borrada exitosamente: $filePath');
+      return true;
+    } catch (e) {
+      debugPrint('Excepción al borrar imagen: $e');
+      return false;
+    }
   }
 }

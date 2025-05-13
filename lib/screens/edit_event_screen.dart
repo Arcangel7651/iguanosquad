@@ -5,6 +5,7 @@ import 'package:iguanosquad/services/actividad_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:path/path.dart' as path;
 
 class EditEventScreen extends StatefulWidget {
   final String nombre;
@@ -18,6 +19,7 @@ class EditEventScreen extends StatefulWidget {
 }
 
 class _EditEventScreenState extends State<EditEventScreen> {
+  final SupabaseClient _supabase = Supabase.instance.client;
   late int idEvent;
   final tituloController = TextEditingController();
   final fechaController = TextEditingController();
@@ -34,6 +36,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
   File? _selectedImage;
   late String? _existingImageUrl;
   late String? _existingImageUrlCopy;
+  bool _isUploadingImage = false;
 
   @override
   void initState() {
@@ -54,6 +57,38 @@ class _EditEventScreenState extends State<EditEventScreen> {
       }
     } catch (e) {
       debugPrint('Error seleccionando imagen: $e');
+    }
+  }
+
+  Future<String?> _uploadImage() async {
+    if (_selectedImage == null) return null;
+
+    setState(() => _isUploadingImage = true);
+    try {
+      final String fileExt = path.extension(_selectedImage!.path);
+      final String fileName =
+          'activities/${DateTime.now().millisecondsSinceEpoch}$fileExt';
+      const String bucketName = 'markedplace';
+
+      // Subir a Supabase Storage
+      final response = await _supabase.storage
+          .from(bucketName)
+          .upload(fileName, _selectedImage!);
+
+      if (response != null) {
+        // Obtener la URL pública
+        final String imageUrl =
+            _supabase.storage.from(bucketName).getPublicUrl(fileName);
+
+        debugPrint('Imagen subida exitosamente: $imageUrl');
+        return imageUrl;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error subiendo imagen: $e');
+      return null;
+    } finally {
+      setState(() => _isUploadingImage = false);
     }
   }
 
@@ -118,10 +153,17 @@ class _EditEventScreenState extends State<EditEventScreen> {
       tipoActividad: tipoActividadController.text,
     );
 
+    final newUrl = await _uploadImage();
+
+    final bool remplazarURL =
+        await ActivityService().updateImageUrlInDatabase(idEvent, newUrl ?? '');
+
     if (exito) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Evento actualizado exitosamente')),
       );
+      bool deleteImage =
+          await ActivityService().deleteImage(_existingImageUrlCopy ?? '');
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
