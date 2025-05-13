@@ -66,7 +66,7 @@ class ActivityService {
     // Ejecuta la consulta y obtén el PostgrestResponse
     final response = await supabase
         .from('actividad_conservacion')
-        .select('nombre, fecha_hora, ubicacion, descripcion')
+        .select('nombre, fecha_hora, ubicacion, descripcion, url_image')
         .eq('organizador', userId)
         .execute(); // ← ¡IMPORTANTE!
 

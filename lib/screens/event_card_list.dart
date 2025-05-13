@@ -56,7 +56,7 @@ class _EventCardListState extends State<EventCardList> {
               participants: 0, // <-- Ajusta si tienes este dato
               isActive: true, // <-- Ajusta si tienes este dato
               onEdit: () {},
-              onDelete: () {},
+              onDelete: () {}, imageURL: evento['url_image'] ?? '',
             );
           },
         );
