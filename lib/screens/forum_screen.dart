@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'answer_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
+
+// Obtener la instancia de Supabase
+final supabase = Supabase.instance.client;
 
 class QuestionItem {
   final int id;
@@ -9,6 +14,7 @@ class QuestionItem {
   final String content;
   int likes;
   int comments;
+  final String? userId;
 
   QuestionItem({
     required this.id,
@@ -18,7 +24,70 @@ class QuestionItem {
     required this.content,
     required this.likes,
     required this.comments,
+    this.userId,
   });
+
+  // Método para crear un QuestionItem desde datos de Supabase
+  static Future<QuestionItem> fromSupabase(Map<String, dynamic> data) async {
+    // Obtener información del usuario que hizo la pregunta
+    String authorName = 'Usuario';
+    
+    if (data['id_usuario'] != null) {
+      try {
+        final userData = await supabase
+            .from('usuario')
+            .select('nombre')
+            .eq('id', data['id_usuario'])
+            .single();
+        
+        if (userData != null && userData['nombre'] != null) {
+          authorName = userData['nombre'];
+        }
+      } catch (e) {
+        print('Error al obtener datos del usuario: $e');
+      }
+    }
+
+    // Formatear la fecha para mostrar hace cuánto tiempo se publicó
+    final DateTime fecha = DateTime.parse(data['fecha']);
+    final String timePosted = _getTimeAgo(fecha);
+
+    // Para likes y comentarios, podríamos obtenerlos de otras tablas si las tienes
+    // Por ahora, los inicializamos en 0
+    int likes = 0;
+    int comments = 0;
+
+    return QuestionItem(
+      id: data['id_pregunta'],
+      title: data['pregunta'],
+      author: authorName,
+      timePosted: timePosted,
+      content: data['pregunta'], // Si no tienes un campo de contenido, puedes usar el mismo título
+      likes: likes,
+      comments: comments,
+      userId: data['id_usuario'],
+    );
+  }
+
+  // Método para formatear la fecha como "hace X tiempo"
+  static String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 365) {
+      return 'Hace ${(difference.inDays / 365).floor()} años';
+    } else if (difference.inDays > 30) {
+      return 'Hace ${(difference.inDays / 30).floor()} meses';
+    } else if (difference.inDays > 0) {
+      return 'Hace ${difference.inDays} días';
+    } else if (difference.inHours > 0) {
+      return 'Hace ${difference.inHours} horas';
+    } else if (difference.inMinutes > 0) {
+      return 'Hace ${difference.inMinutes} minutos';
+    } else {
+      return 'Justo ahora';
+    }
+  }
 }
 
 class ForumScreen extends StatefulWidget {
@@ -31,27 +100,62 @@ class ForumScreen extends StatefulWidget {
 class _ForumScreenState extends State<ForumScreen> {
   int _currentIndex = 2; // Start at the Preguntas tab
   int _selectedTabIndex = 0; // 0: Todas, 1: Mis Preguntas, 2: Por Responder
+  
+  List<QuestionItem> _questions = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  final List<QuestionItem> _questions = [
-    QuestionItem(
-      id: 1,
-      title: '¿Cómo puedo iniciar un compostaje en casa?',
-      author: 'Juan Díaz',
-      timePosted: 'Hace 2 días',
-      content: 'Vivo en un apartamento pequeño y me gustaría empezar a compostar mis residuos orgánicos. ¿Alguien tiene consejos para hacerlo sin generar malos olores?',
-      likes: 5,
-      comments: 3,
-    ),
-    QuestionItem(
-      id: 2,
-      title: '¿Qué plantas son mejores para purificar el aire interior?',
-      author: 'Laura Martínez',
-      timePosted: 'Hace 5 días',
-      content: 'Estoy buscando plantas que ayuden a mejorar la calidad del aire en mi hogar. ¿Cuáles son las más efectivas y fáciles de mantener?',
-      likes: 8,
-      comments: 6,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadQuestions();
+  }
+
+  // Cargar preguntas desde Supabase
+  Future<void> _loadQuestions() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Obtener el usuario actual
+      final currentUser = supabase.auth.currentUser;
+      
+      // Consultar según la pestaña seleccionada
+      final query = supabase.from('preguntas').select('*');
+      
+      if (_selectedTabIndex == 1 && currentUser != null) {
+        // Mis Preguntas - filtrar por id_usuario
+        query.eq('id_usuario', currentUser.id);
+      }
+      // Para "Por Responder" necesitarías una tabla de respuestas y hacer un join
+      // Para este ejemplo simplificado, mostraremos todas las preguntas en ese caso
+      
+      // Ordenar por fecha descendente (más recientes primero)
+      query.order('fecha', ascending: false);
+      
+      final data = await query;
+      
+      // Convertir los datos en objetos QuestionItem
+      final List<QuestionItem> loadedQuestions = [];
+      for (var item in data) {
+        final question = await QuestionItem.fromSupabase(item);
+        loadedQuestions.add(question);
+      }
+      
+      setState(() {
+        _questions = loadedQuestions;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error al cargar las preguntas: $e';
+        print(_errorMessage);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,12 +203,21 @@ class _ForumScreenState extends State<ForumScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: _questions.length,
-              itemBuilder: (context, index) {
-                return _buildQuestionCard(_questions[index]);
-              },
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                    ? Center(child: Text(_errorMessage!))
+                    : _questions.isEmpty
+                        ? const Center(child: Text('No hay preguntas disponibles'))
+                        : RefreshIndicator(
+                            onRefresh: _loadQuestions,
+                            child: ListView.builder(
+                              itemCount: _questions.length,
+                              itemBuilder: (context, index) {
+                                return _buildQuestionCard(_questions[index]);
+                              },
+                            ),
+                          ),
           ),
         ],
       ),
@@ -157,6 +270,7 @@ class _ForumScreenState extends State<ForumScreen> {
       onTap: () {
         setState(() {
           _selectedTabIndex = index;
+          _loadQuestions(); // Recargar preguntas al cambiar de pestaña
         });
       },
       child: Container(
@@ -185,7 +299,7 @@ class _ForumScreenState extends State<ForumScreen> {
           MaterialPageRoute(
             builder: (context) => AnswerScreen(question: question),
           ),
-        );
+        ).then((_) => _loadQuestions()); // Recargar al volver
       },
       child: Card(
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
@@ -269,7 +383,7 @@ class _ForumScreenState extends State<ForumScreen> {
                         MaterialPageRoute(
                           builder: (context) => AnswerScreen(question: question),
                         ),
-                      );
+                      ).then((_) => _loadQuestions()); // Recargar al volver
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
@@ -292,7 +406,6 @@ class _ForumScreenState extends State<ForumScreen> {
 
   void _showNewQuestionDialog(BuildContext context) {
     final titleController = TextEditingController();
-    final contentController = TextEditingController();
 
     showDialog(
       context: context,
@@ -304,16 +417,8 @@ class _ForumScreenState extends State<ForumScreen> {
             TextField(
               controller: titleController,
               decoration: const InputDecoration(
-                hintText: 'Título de la pregunta',
-                labelText: 'Título',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: contentController,
-              decoration: const InputDecoration(
-                hintText: 'Describe tu pregunta aquí',
-                labelText: 'Contenido',
+                hintText: 'Escribe tu pregunta aquí',
+                labelText: 'Pregunta',
               ),
               maxLines: 5,
             ),
@@ -327,22 +432,29 @@ class _ForumScreenState extends State<ForumScreen> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
-              if (titleController.text.isNotEmpty && contentController.text.isNotEmpty) {
-                setState(() {
-                  _questions.add(
-                    QuestionItem(
-                      id: _questions.length + 1,
-                      title: titleController.text,
-                      author: 'Usuario',
-                      timePosted: 'Justo ahora',
-                      content: contentController.text,
-                      likes: 0,
-                      comments: 0,
-                    ),
+            onPressed: () async {
+              if (titleController.text.isNotEmpty) {
+                try {
+                  // Obtener el usuario actual
+                  final currentUser = supabase.auth.currentUser;
+                  
+                  // Insertar la nueva pregunta en Supabase
+                  await supabase.from('preguntas').insert({
+                    'pregunta': titleController.text,
+                    'fecha': DateTime.now().toIso8601String().split('T')[0], // Formato YYYY-MM-DD
+                    'id_usuario': currentUser?.id,
+                  });
+                  
+                  // Recargar las preguntas
+                  await _loadQuestions();
+                  
+                  Navigator.pop(context);
+                } catch (e) {
+                  // Mostrar un error si falla la inserción
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al publicar la pregunta: $e')),
                   );
-                });
-                Navigator.pop(context);
+                }
               }
             },
             style: ElevatedButton.styleFrom(
