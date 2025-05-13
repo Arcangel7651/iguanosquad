@@ -117,6 +117,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
   Future<void> guardarDatos() async {
     print("Actualizando datos....");
+
     // Validaciones básicas
     if (tituloController.text.isEmpty ||
         _selectedDate == null ||
@@ -131,7 +132,6 @@ class _EditEventScreenState extends State<EditEventScreen> {
       return;
     }
 
-    // Parsea cupos a entero
     final int? cupos = int.tryParse(cuposController.text);
     if (cupos == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -140,7 +140,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
       return;
     }
 
-    // Llamada al servicio
+    // Actualizar los datos del evento
     final bool exito = await ActivityService().actualizarActividad(
       id: idEvent,
       nombre: tituloController.text,
@@ -153,17 +153,32 @@ class _EditEventScreenState extends State<EditEventScreen> {
       tipoActividad: tipoActividadController.text,
     );
 
-    final newUrl = await _uploadImage();
-
-    final bool remplazarURL =
-        await ActivityService().updateImageUrlInDatabase(idEvent, newUrl ?? '');
-
     if (exito) {
+      // Si el usuario eligió una nueva imagen
+      if (_selectedImage != null) {
+        print("Nueva imagen seleccionada. Subiendo...");
+
+        // Subimos la nueva imagen
+        final String? newUrl = await _uploadImage();
+
+        if (newUrl != null) {
+          // Reemplazamos la URL en la base de datos
+          final bool remplazarURL =
+              await ActivityService().updateImageUrlInDatabase(idEvent, newUrl);
+
+          print("URL reemplazada: $remplazarURL");
+
+          // Eliminamos la imagen antigua
+          final bool eliminada =
+              await ActivityService().deleteImage(_existingImageUrlCopy ?? '');
+
+          print("Imagen anterior eliminada: $eliminada");
+        }
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Evento actualizado exitosamente')),
       );
-      bool deleteImage =
-          await ActivityService().deleteImage(_existingImageUrlCopy ?? '');
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
