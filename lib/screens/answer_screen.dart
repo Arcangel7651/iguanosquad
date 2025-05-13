@@ -1,35 +1,64 @@
+// lib/screens/answer_screen.dart
 import 'package:flutter/material.dart';
-import 'package:iguanosquad/models/Preguntas.dart';
-import 'forum_screen.dart'; // Importamos para acceder a QuestionItem
+import 'package:intl/intl.dart';
+import '../models/Preguntas.dart';
+import '../models/respuesta.dart';
+import '../services/respuesta_service.dart';
 
 class AnswerScreen extends StatefulWidget {
   final Pregunta question;
 
-  const AnswerScreen({super.key, required this.question});
+  const AnswerScreen({Key? key, required this.question}) : super(key: key);
 
   @override
   State<AnswerScreen> createState() => _AnswerScreenState();
 }
 
 class _AnswerScreenState extends State<AnswerScreen> {
-  final TextEditingController _answerController = TextEditingController();
+  final _answerController = TextEditingController();
+  final _service = RespuestasService();
 
-  final List<Answer> _answers = [
-    Answer(
-      author: "María García",
-      timePosted: "Hace 1 día",
-      content:
-          "Para compostar en un apartamento pequeño, te recomiendo un compostador de bokashi. Es un sistema cerrado que no genera olores y permite compostar casi todos los residuos de cocina. Solo necesitas agregar un acelerador especial y mantenerlo sellado. ¡Funciona muy bien en espacios reducidos!",
-      likes: 3,
-    ),
-    Answer(
-      author: "Carlos Ruiz",
-      timePosted: "Hace 12 horas",
-      content:
-          "Yo uso un pequeño compostador de encimera con filtro de carbón activado. Lo importante es equilibrar bien los residuos secos (papel, cartón) con los húmedos (restos de frutas y verduras). Evita poner carnes o lácteos para prevenir olores. Si lo mantienes bien aireado y con la mezcla correcta, no tendrás problemas de olor.",
-      likes: 2,
-    ),
-  ];
+  List<Respuesta> _answers = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAnswers();
+  }
+
+  Future<void> _loadAnswers() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final lista =
+          await _service.obtenerRespuestas(widget.question.idPregunta);
+      setState(() => _answers = lista);
+    } catch (e) {
+      setState(() => _error = 'Error cargando respuestas: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _submitAnswer() async {
+    final text = _answerController.text.trim();
+    if (text.isEmpty) return;
+    setState(() => _isLoading = true);
+    try {
+      await _service.crearRespuesta(widget.question.idPregunta, text);
+      _answerController.clear();
+      await _loadAnswers();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar: $e')),
+      );
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -39,131 +68,90 @@ class _AnswerScreenState extends State<AnswerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final fecha =
+        DateFormat('dd/MM/yyyy – HH:mm').format(widget.question.fecha);
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          'Detalles de la Pregunta',
-          style: TextStyle(color: Colors.white),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Detalle de la Pregunta'),
+        automaticallyImplyLeading: true,
       ),
       body: Column(
         children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
+          // Detalle de la pregunta
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildQuestionDetail(),
-                const Divider(height: 32),
-                const Text(
-                  'Respuestas',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Text(widget.question.pregunta,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.question.nombreUsuario ?? 'Anónimo'} · $fecha',
+                  style: TextStyle(color: Colors.grey[600]),
                 ),
-                const SizedBox(height: 16),
-                ..._answers.map(_buildAnswerItem).toList(),
+                const Divider(height: 24),
               ],
             ),
           ),
-          _buildAnswerInput(),
+
+          // Lista de respuestas
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(child: Text(_error!))
+                    : _answers.isEmpty
+                        ? const Center(
+                            child: Text('Sé el primero en responder'))
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _answers.length,
+                            itemBuilder: (_, i) =>
+                                _buildAnswerItem(_answers[i]),
+                          ),
+          ),
+
+          // Entrada de nueva respuesta
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              color: Colors.white,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _answerController,
+                    decoration: const InputDecoration(
+                      hintText: 'Escribe tu respuesta...',
+                      border: OutlineInputBorder(),
+                    ),
+                    minLines: 1,
+                    maxLines: 3,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _submitAnswer,
+                  child: const Text('Enviar'),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildQuestionDetail() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              backgroundColor: Colors.grey[300],
-              radius: 24,
-              child: const Icon(Icons.person, color: Colors.white, size: 30),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.question.pregunta,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${widget.question.nombreUsuario} · ${widget.question.fecha}',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Text(
-          widget.question.pregunta,
-          style: const TextStyle(fontSize: 16),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            /*GestureDetector(
-              onTap: () {
-                setState(() {
-                  widget.question.likes++;
-                });
-              },
-              child: Row(
-                children: [
-                  Icon(Icons.thumb_up_alt_outlined, size: 20, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    widget.question.likes.toString(),
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),*/
-            const SizedBox(width: 24),
-            Row(
-              children: [
-                Icon(Icons.chat_bubble_outline,
-                    size: 20, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text(
-                  widget.question.idUsuario.toString(),
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAnswerItem(Answer answer) {
+  Widget _buildAnswerItem(Respuesta resp) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -171,142 +159,21 @@ class _AnswerScreenState extends State<AnswerScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                backgroundColor: Colors.grey[300],
-                radius: 20,
-                child: const Icon(Icons.person, color: Colors.white),
-              ),
-              const SizedBox(width: 12),
+              const CircleAvatar(child: Icon(Icons.person)),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      answer.author,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                    Text(
-                      answer.timePosted,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  resp.nombreUsuario ?? 'Anónimo',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            answer.content,
-            style: const TextStyle(fontSize: 15),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                answer.likes++;
-              });
-            },
-            child: Row(
-              children: [
-                Icon(Icons.thumb_up_alt_outlined,
-                    size: 18, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text(
-                  answer.likes.toString(),
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(height: 8),
+          Text(resp.respuesta),
         ],
       ),
     );
   }
-
-  Widget _buildAnswerInput() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, -1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _answerController,
-              decoration: const InputDecoration(
-                hintText: 'Escribe tu respuesta...',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              maxLines: 3,
-              minLines: 1,
-            ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: () {
-              if (_answerController.text.isNotEmpty) {
-                setState(() {
-                  _answers.add(
-                    Answer(
-                      author: 'Usuario',
-                      timePosted: 'Justo ahora',
-                      content: _answerController.text,
-                      likes: 0,
-                    ),
-                  );
-                  widget.question.fecha;
-                  _answerController.clear();
-                });
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Enviar'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class Answer {
-  final String author;
-  final String timePosted;
-  final String content;
-  int likes;
-
-  Answer({
-    required this.author,
-    required this.timePosted,
-    required this.content,
-    required this.likes,
-  });
 }
