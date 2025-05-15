@@ -1,4 +1,3 @@
-// lib/screens/answer_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/Preguntas.dart';
@@ -71,77 +70,89 @@ class _AnswerScreenState extends State<AnswerScreen> {
     final fecha =
         DateFormat('dd/MM/yyyy – HH:mm').format(widget.question.fecha);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detalle de la Pregunta'),
-        automaticallyImplyLeading: true,
-      ),
-      body: Column(
-        children: [
-          // Detalle de la pregunta
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+      body: CustomScrollView(
+        slivers: [
+          // SliverAppBar
+          SliverAppBar(
+            floating: true,
+            snap: true,
+            pinned: false,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.question.pregunta,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(
-                  '${widget.question.nombreUsuario ?? 'Anónimo'} · $fecha',
-                  style: TextStyle(color: Colors.grey[600]),
+                Text('Destalles pregunta'),
+              ],
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(color: Theme.of(context).primaryColor),
+            ),
+          ),
+          // Detalle de la pregunta
+          SliverList(
+            delegate: SliverChildListDelegate(
+              [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.question.pregunta,
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${widget.question.nombreUsuario ?? 'Anónimo'} · $fecha',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                      const Divider(height: 24),
+                    ],
+                  ),
                 ),
-                const Divider(height: 24),
               ],
             ),
           ),
 
           // Lista de respuestas
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(child: Text(_error!))
-                    : _answers.isEmpty
-                        ? const Center(
-                            child: Text('Sé el primero en responder'))
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _answers.length,
-                            itemBuilder: (_, i) =>
-                                _buildAnswerItem(_answers[i]),
-                          ),
-          ),
-
-          // Entrada de nueva respuesta
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
-              color: Colors.white,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _answerController,
-                    decoration: const InputDecoration(
-                      hintText: 'Escribe tu respuesta...',
-                      border: OutlineInputBorder(),
-                    ),
-                    minLines: 1,
-                    maxLines: 3,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _submitAnswer,
-                  child: const Text('Enviar'),
-                ),
-              ],
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, i) => _buildAnswerItem(_answers[i]),
+              childCount: _answers.length,
             ),
           ),
         ],
+      ),
+
+      // Entrada de nueva respuesta
+      bottomSheet: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          color: Colors.white,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _answerController,
+                decoration: const InputDecoration(
+                  hintText: 'Escribe tu respuesta...',
+                  border: OutlineInputBorder(),
+                ),
+                minLines: 1,
+                maxLines: 3,
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _submitAnswer,
+              child: const Text('Enviar'),
+            ),
+          ],
+        ),
       ),
     );
   }
