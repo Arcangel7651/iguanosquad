@@ -29,8 +29,6 @@ class PreguntasService {
       usuario(nombre)
     ''').order('fecha', ascending: false);
 
-      print("Respuesta obtenida: $response");
-
       // Verificar si la respuesta es una lista
       if (response is List) {
         List<Pregunta> preguntas = [];

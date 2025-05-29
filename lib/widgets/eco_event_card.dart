@@ -1,5 +1,6 @@
 // lib/widgets/eco_event_card.dart
 import 'package:flutter/material.dart';
+import 'package:iguanosquad/screens/activity_detail_screen.dart';
 
 class EcoEventCard extends StatelessWidget {
   final String title;
@@ -11,6 +12,7 @@ class EcoEventCard extends StatelessWidget {
   final String? materials;
   final String type;
   final VoidCallback? onParticipate;
+  final int id;
 
   const EcoEventCard({
     Key? key,
@@ -23,6 +25,7 @@ class EcoEventCard extends StatelessWidget {
     this.materials,
     required this.type,
     this.onParticipate,
+    required this.id,
   }) : super(key: key);
 
   @override
@@ -175,14 +178,22 @@ class EcoEventCard extends StatelessWidget {
                     Tooltip(
                       message: 'Registrarse al evento',
                       child: ElevatedButton(
-                        onPressed: onParticipate ?? () {},
+                        onPressed: onParticipate ??
+                            () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (ctx) =>
+                                      ActivityDetailScreen(activityId: id),
+                                ),
+                              );
+                            },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF4CAF50),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: const Text('Participar'),
+                        child: const Text('Ver'),
                       ),
                     ),
                   ],

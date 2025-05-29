@@ -282,6 +282,7 @@ class _EventsScreenState extends State<EventsScreen> {
                                 imageUrl: activity.urlImage,
                                 materials: activity.materialesRequeridos,
                                 type: activity.tipoActividad ?? 'Presencial',
+                                id: activity.id,
                               ),
                             );
                           },

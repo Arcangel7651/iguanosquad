@@ -200,4 +200,79 @@ class ActivityService {
       return false;
     }
   }
+
+  Future<Activity?> fetchActivity(int id) async {
+    print(id);
+    final response = await _supabase
+        .from('actividad_conservacion')
+        .select()
+        .eq('id', id)
+        .single();
+
+    print(response);
+    if (response != null) {
+      return Activity.fromJson(response);
+    }
+
+    return null;
+  }
+
+  Future<bool> userParticipating(int activityId, String userId) async {
+    try {
+      // Traemos a lo más un registro; si no existe, maybeSingle() devuelve null
+      final record = await _supabase
+          .from('usuario_actividad')
+          .select('usuario_id')
+          .eq('actividad_id', activityId)
+          .eq('usuario_id', userId)
+          .maybeSingle();
+      print("La actividad encontrada: ${record}");
+      if (record != null) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      // En caso de error (p. ej. conexión), devolvemos false o relanzamos según prefieras
+      debugPrint('Error comprobando participación: $e');
+      return false;
+    }
+  }
+
+  Future<int> countParticipants(int activityId) async {
+    // Hacemos un HEAD request (solo count, sin datos)
+    final response = await _supabase
+        .from('usuario_actividad')
+        .select(
+          'usuario_id', // cualquier columna sirve
+          const FetchOptions(
+            count: CountOption.exact, // contamos exactamente todas las filas
+            head: true, // no traemos las filas, solo el conteo
+          ),
+        )
+        .eq('actividad_id', activityId);
+
+    // Si algo falla, devolvemos 0 en lugar de null
+    return response.count ?? 0; // si algo falla, devolvemos 0
+  }
+
+  Future<void> toggleParticipation(int activityId, String userId,
+      bool isParticipating, int availableSpots) async {
+    if (isParticipating) {
+      await _supabase
+          .from('actividad_participante')
+          .delete()
+          .eq('id_actividad', activityId)
+          .eq('id_usuario', userId);
+    } else {
+      if (availableSpots <= 0) {
+        throw Exception('No hay cupos disponibles');
+      }
+      await _supabase.from('actividad_participante').insert({
+        'id_actividad': activityId,
+        'id_usuario': userId,
+        'fecha_inscripcion': DateTime.now().toIso8601String(),
+      });
+    }
+  }
 }
