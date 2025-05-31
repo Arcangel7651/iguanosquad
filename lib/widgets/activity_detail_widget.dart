@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/activity.dart';
+import '../services/actividad_service.dart';
 
 class ActivityDetailWidget extends StatelessWidget {
   final Activity activity;
@@ -266,22 +268,30 @@ class ActivityDetailWidget extends StatelessWidget {
     if (checkingParticipation) {
       return const Center(child: CircularProgressIndicator());
     }
+    if (esTuEvento()) {
+      return const SizedBox.shrink(); // No renderiza nada
+    }
     final bool noSpotsAvailable = activity.disponibilidadCupos != null &&
         participantsCount >= activity.disponibilidadCupos!;
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: noSpotsAvailable && !isParticipating ? null : onToggle,
+        onPressed: noSpotsAvailable && !isParticipating
+            ? null
+            : () {
+                conformarPArticipacion();
+              },
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              isParticipating ? Colors.red : const Color(0xFF4CAF50),
+          backgroundColor: isParticipating
+              ? const Color.fromARGB(255, 126, 125, 125)
+              : const Color(0xFF4CAF50),
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         child: Text(
           isParticipating
-              ? 'Cancelar participación'
+              ? 'Ya estas participando'
               : noSpotsAvailable
                   ? 'No hay cupos disponibles'
                   : 'Participar en esta actividad',
@@ -311,5 +321,35 @@ class ActivityDetailWidget extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void conformarPArticipacion() async {
+    final userIdd = Supabase.instance.client.auth.currentUser?.id;
+    if (await ActivityService()
+        .yaInscrito(usuarioId: userIdd, actividadId: activity.id)) {
+    } else {
+      final exito = await ActivityService().confirmarParticipacion(
+        usuarioId: userIdd,
+        actividadId: activity.id,
+      );
+      if (exito) {
+        print("Su asistencia fue un exito");
+      } else {
+        print("Su asistencia no fue un exito");
+      }
+    }
+  }
+
+  bool esTuEvento() {
+    final userIdd = Supabase.instance.client.auth.currentUser?.id;
+    print(activity.organizador);
+    print(userIdd);
+    if (activity.organizador == userIdd) {
+      print("Es tu evneto");
+      return true;
+    } else {
+      print("NO Es tu evneto");
+      return false;
+    }
   }
 }

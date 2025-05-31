@@ -275,4 +275,36 @@ class ActivityService {
       });
     }
   }
+
+  Future<bool> confirmarParticipacion({
+    required String? usuarioId,
+    required int actividadId,
+  }) async {
+    try {
+      final response = await _supabase.from('usuario_actividad').insert({
+        'usuario_id': usuarioId,
+        'actividad_id': actividadId,
+      }).execute();
+
+      return true;
+    } catch (e) {
+      print('Excepción al confirmar participación: $e');
+      return false;
+    }
+  }
+
+  /// Verifica si el usuario ya está inscrito en la actividad
+  Future<bool> yaInscrito({
+    required String? usuarioId,
+    required int actividadId,
+  }) async {
+    final response = await _supabase
+        .from('usuario_actividad')
+        .select()
+        .eq('usuario_id', usuarioId)
+        .eq('actividad_id', actividadId)
+        .maybeSingle();
+
+    return response != null;
+  }
 }
