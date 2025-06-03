@@ -1,4 +1,3 @@
-// lib/models/activity.dart
 class Activity {
   final int id;
   final String nombre;
@@ -10,6 +9,7 @@ class Activity {
   final String? materialesRequeridos;
   final String? urlImage;
   final String? tipoCategoria;
+  final String? organizador; // <- Antes era idUsuario
 
   Activity({
     required this.id,
@@ -22,6 +22,7 @@ class Activity {
     this.materialesRequeridos,
     this.urlImage,
     this.tipoCategoria,
+    this.organizador, // <- Actualizado
   });
 
   factory Activity.fromJson(Map<String, dynamic> json) {
@@ -38,12 +39,12 @@ class Activity {
       materialesRequeridos: json['materiales_requeridos'],
       urlImage: json['url_image'],
       tipoCategoria: json['tipo_categoria'],
+      organizador: json['organizador'], // <- Aquí se alinea
     );
   }
-  
-  // Método para depuración
+
   @override
   String toString() {
-    return 'Activity(id: $id, nombre: $nombre, urlImage: $urlImage)';
+    return 'Activity(id: $id, nombre: $nombre, organizador: $organizador)';
   }
 }
