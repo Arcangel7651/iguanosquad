@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:iguanosquad/services/articulo.dart';
 import '../models/product.dart';
 
-class ArticleCard extends StatelessWidget {
+class ArticleCard extends StatefulWidget {
   final Product article;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
@@ -14,15 +15,22 @@ class ArticleCard extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<ArticleCard> createState() => _ArticleCardState();
+}
+
+class _ArticleCardState extends State<ArticleCard> {
+  @override
   Widget build(BuildContext context) {
-    // Obtén la primera URL si la lista no está vacía
+    final article = widget.article;
+
+    // Obtener la primera imagen si existe
     final String? firstImageUrl =
         (article.imgs != null && article.imgs!.isNotEmpty)
             ? article.imgs!.first
             : null;
 
     return Card(
-      color: Color.fromARGB(255, 255, 255, 255),
+      color: Colors.white,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
@@ -32,22 +40,73 @@ class ArticleCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row de título y botones
+            // Fila de título y acciones
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  article.nombre,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
+                Expanded(
+                  child: Text(
+                    article.nombre,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
                 Row(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.edit),
-                      onPressed: onEdit,
+                      onPressed: widget.onEdit,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Confirmar'),
+                            content: const Text(
+                                '¿Seguro que quieres eliminar esta actividad?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancelar'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Eliminar'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirmed != true) return; //Reinicia
+
+                        try {
+                          final success = await ArticuloService()
+                              .borrarArticuloPorId(article.id);
+
+                          if (success) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text('Artículo eliminado exitosamente'),
+                                duration: Duration(seconds: 3),
+                              ),
+                            );
+                            // Llama al callback onDelete para que el padre recargue
+                            widget.onDelete?.call();
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error al eliminar: \$e')),
+                          );
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -77,7 +136,7 @@ class ArticleCard extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Primera imagen o placeholder
+            // Imagen o placeholder
             Container(
               width: double.infinity,
               height: 150,
@@ -102,8 +161,11 @@ class ArticleCard extends StatelessWidget {
                         );
                       },
                       errorBuilder: (context, error, stack) => const Center(
-                        child: Icon(Icons.broken_image,
-                            size: 40, color: Colors.grey),
+                        child: Icon(
+                          Icons.broken_image,
+                          size: 40,
+                          color: Colors.grey,
+                        ),
                       ),
                     )
                   : const Center(

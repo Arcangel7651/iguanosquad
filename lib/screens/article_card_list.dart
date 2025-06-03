@@ -67,14 +67,18 @@ class _ArticleCardListState extends State<ArticleCardList> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => EditArticleScreen(
-                      articulo: article,
-                    ),
+                    builder: (_) => EditArticleScreen(articulo: article),
                   ),
                 ).then((_) {
                   setState(() {
                     _futureProducts = _service.getProductsByUser(_userId);
                   });
+                });
+              },
+              onDelete: () {
+                // Este callback se ejecutará justo después de borrar el artículo
+                setState(() {
+                  _futureProducts = _service.getProductsByUser(_userId);
                 });
               },
             );
