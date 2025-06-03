@@ -66,7 +66,7 @@ class ActivityService {
     // Ejecuta la consulta y obtén el PostgrestResponse
     final response = await supabase
         .from('actividad_conservacion')
-        .select('nombre, fecha_hora, ubicacion, descripcion, url_image')
+        .select('nombre, fecha_hora, ubicacion, descripcion, url_image,id')
         .eq('organizador', userId)
         .execute(); // ← ¡IMPORTANTE!
 
@@ -306,5 +306,24 @@ class ActivityService {
         .maybeSingle();
 
     return response != null;
+  }
+
+  Future<bool> eliminarActividadPorId(int id) async {
+    final supabase = Supabase.instance.client;
+
+    final response = await supabase
+        .from('actividad_conservacion')
+        .delete()
+        .eq('id', id)
+        .execute();
+
+    // Verifica si el statusCode indica éxito
+    if (response.status == 204 || response.status == 200) {
+      print('Actividad eliminada con éxito');
+      return true;
+    } else {
+      print('Error al eliminar actividad: ${response ?? 'Error desconocido'}');
+      return false;
+    }
   }
 }

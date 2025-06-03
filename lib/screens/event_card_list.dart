@@ -82,8 +82,7 @@ class _EventCardListState extends State<EventCardList> with RouteAware {
               date: fechaHora,
               location: evento['ubicacion'] ?? 'Ubicación no especificada',
               description: evento['descripcion'] ?? '',
-              participants: evento['disponibilidad_cupos'] ?? 0,
-              isActive: true,
+              id: evento['id'] ?? 0,
               imageURL: evento['url_image'] ?? '',
               onEdit: () async {
                 await Navigator.push(
