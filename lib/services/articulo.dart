@@ -79,4 +79,17 @@ class ArticuloService {
       debugPrint('Error al eliminar imágenes: $e');
     }
   }
+
+  Future<bool> borrarArticuloPorId(int id) async {
+    try {
+      final response =
+          await _supabase.from('articulo').delete().eq('id', id).execute();
+
+      print('Artículo eliminado exitosamente.');
+      return true;
+    } catch (e) {
+      print('Excepción al eliminar artículo: $e');
+      return false;
+    }
+  }
 }
