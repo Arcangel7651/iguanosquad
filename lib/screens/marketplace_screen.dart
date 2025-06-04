@@ -74,7 +74,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
   }
 
-  Future<void> _pickImages() async {
+  // FUNCIÓN CORREGIDA: Ahora recibe el setDialogState como parámetro
+  Future<void> _pickImages(StateSetter setDialogState) async {
     try {
       final List<XFile> images = await _imagePicker.pickMultiImage(
         maxWidth: 1920,
@@ -82,7 +83,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         imageQuality: 85,
       );
       if (images.isNotEmpty) {
-        setState(() {
+        // SOLO usamos setDialogState, NO setState del widget principal
+        setDialogState(() {
           _selectedImages.addAll(images.map((image) => File(image.path)));
         });
       }
@@ -420,12 +422,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Selector de imágenes mejorado
+                    // Selector de imágenes mejorado - CORREGIDO
                     InkWell(
                       onTap: () async {
-                        await _pickImages();
-                        // Actualizamos el estado del diálogo después de seleccionar imágenes
-                        setDialogState(() {});
+                        // CAMBIO PRINCIPAL: Pasamos setDialogState como parámetro
+                        await _pickImages(setDialogState);
                       },
                       child: Container(
                         height: 150,
@@ -500,8 +501,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                     right: 8,
                                     child: ElevatedButton.icon(
                                       onPressed: () async {
-                                        await _pickImages();
-                                        setDialogState(() {});
+                                        // CAMBIO: Pasamos setDialogState aquí también
+                                        await _pickImages(setDialogState);
                                       },
                                       icon: const Icon(
                                           Icons.add_photo_alternate,

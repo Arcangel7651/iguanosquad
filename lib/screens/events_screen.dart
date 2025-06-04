@@ -27,6 +27,8 @@ class _EventsScreenState extends State<EventsScreen> {
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _materialsController = TextEditingController();
+  final _availableSpotsController =
+      TextEditingController(); // Nuevo controlador
   DateTime? _selectedDate;
   String _selectedActivityType = 'Presencial';
   int? _availableSpots;
@@ -45,6 +47,7 @@ class _EventsScreenState extends State<EventsScreen> {
     _descriptionController.dispose();
     _locationController.dispose();
     _materialsController.dispose();
+    _availableSpotsController.dispose(); // Dispose del nuevo controlador
     super.dispose();
   }
 
@@ -320,6 +323,7 @@ class _EventsScreenState extends State<EventsScreen> {
     _descriptionController.clear();
     _locationController.clear();
     _materialsController.clear();
+    _availableSpotsController.clear(); // Limpiar el nuevo controlador
     _selectedDate = null;
     _selectedImage = null;
     _availableSpots = null;
@@ -520,12 +524,16 @@ class _EventsScreenState extends State<EventsScreen> {
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
+                      controller: _availableSpotsController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: 'Cupos Disponibles',
+                        labelText: 'Cupos Disponibles (mínimo 4)',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
+                        helperText:
+                            'El evento debe tener al menos 4 participantes',
+                        helperStyle: TextStyle(color: Colors.grey[600]),
                       ),
                       onChanged: (value) {
                         _availableSpots = int.tryParse(value);
@@ -534,9 +542,17 @@ class _EventsScreenState extends State<EventsScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Por favor ingresa el número de cupos';
                         }
-                        if (int.tryParse(value) == null) {
+
+                        final spots = int.tryParse(value);
+                        if (spots == null) {
                           return 'Por favor ingresa un número válido';
                         }
+
+                        // Validación principal: debe ser mayor a 3
+                        if (spots <= 3) {
+                          return 'El evento debe tener más de 3 cupos disponibles';
+                        }
+
                         return null;
                       },
                     ),

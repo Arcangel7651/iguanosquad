@@ -5,17 +5,13 @@ class ProductCategories {
   static const String ropa = 'Ropa';
   static const String mueble = 'Mueble';
   static const String cocina = 'Cocina';
+  static const String otros = 'Otros';
 
-  static List<String> get values => [
-    electronico,
-    ropa,
-    mueble,
-    cocina,
-  ];
+  static List<String> get values => [electronico, ropa, mueble, cocina, otros];
 
   static List<String> estados = [
     'Nuevo',
-    'Como Nuevo',
+    'Semi Nuevo',
     'Usado',
   ];
 }

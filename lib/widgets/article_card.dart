@@ -69,7 +69,7 @@ class _ArticleCardState extends State<ArticleCard> {
                           builder: (ctx) => AlertDialog(
                             title: const Text('Confirmar'),
                             content: const Text(
-                                '¿Seguro que quieres eliminar esta actividad?'),
+                                '¿Seguro que quieres eliminar este articulo?'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx, false),

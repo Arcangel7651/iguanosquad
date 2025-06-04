@@ -63,12 +63,11 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
         _isParticipating,
         (_activity?.disponibilidadCupos ?? 0) - _participantsCount,
       );
+
+      // Aquí recargas los datos Y fuerzas reconstrucción visual
       await _loadDetails();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    }
+      setState(() {});
+    } catch (e) {}
   }
 
   @override

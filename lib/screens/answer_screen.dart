@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/Preguntas.dart';
 import '../models/respuesta.dart';
-import '../services/respuesta_service.dart';
+import '../widgets/respuesta_service.dart';
 
 class AnswerScreen extends StatefulWidget {
   final Pregunta question;
